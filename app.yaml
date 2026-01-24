@@ -1,5 +1,5 @@
 name: translator-api
-region: nyc
+region: tor
 services:
   - name: translator-web
     instance_count: 1
@@ -11,7 +11,7 @@ services:
     envs:
       - key: REDIS_URL
         scope: RUN_TIME
-        value: ${redis.DATABASE_URL}
+        type: SECRET
       - key: DEEPL_AUTH_KEY
         scope: RUN_TIME
         type: SECRET
@@ -24,11 +24,7 @@ services:
     envs:
       - key: REDIS_URL
         scope: RUN_TIME
-        value: ${redis.DATABASE_URL}
+        type: SECRET
       - key: DEEPL_AUTH_KEY
         scope: RUN_TIME
         type: SECRET
-databases:
-  - engine: REDIS
-    name: redis
-    version: "7"
