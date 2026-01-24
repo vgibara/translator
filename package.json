@@ -1,0 +1,37 @@
+{
+  "name": "translator",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "worker:dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/worker.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@bull-board/api": "^6.16.4",
+    "@bull-board/fastify": "^6.16.4",
+    "axios": "^1.13.2",
+    "bullmq": "^5.67.0",
+    "deepl-node": "^1.24.0",
+    "dotenv": "^17.2.3",
+    "fastify": "^5.7.1",
+    "ioredis": "^5.9.2",
+    "pino": "^10.3.0",
+    "pino-pretty": "^13.1.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,34 @@
+name: translator-api
+region: nyc
+services:
+  - name: translator-web
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 3000
+    source_dir: /
+    build_command: npm run build
+    run_command: npm start
+    envs:
+      - key: REDIS_URL
+        scope: RUN_TIME
+        value: ${redis.DATABASE_URL}
+      - key: DEEPL_AUTH_KEY
+        scope: RUN_TIME
+        type: SECRET
+  - name: translator-worker
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    source_dir: /
+    build_command: npm run build
+    run_command: node dist/worker.js
+    envs:
+      - key: REDIS_URL
+        scope: RUN_TIME
+        value: ${redis.DATABASE_URL}
+      - key: DEEPL_AUTH_KEY
+        scope: RUN_TIME
+        type: SECRET
+databases:
+  - engine: REDIS
+    name: redis
+    version: "7"

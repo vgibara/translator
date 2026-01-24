@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DEEPL_AUTH_KEY=${DEEPL_AUTH_KEY}
+    depends_on:
+      - redis
+
+  worker:
+    build: .
+    command: node dist/worker.js
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DEEPL_AUTH_KEY=${DEEPL_AUTH_KEY}
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
