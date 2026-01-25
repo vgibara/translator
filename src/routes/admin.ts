@@ -9,7 +9,8 @@ declare module 'fastify' {
   }
 }
 
-const AUTHORIZED_ADMINS = ['vgibara@gmail.com'];
+// vgibara@gmail.com is the "Super Admin" who can always log in
+const SUPER_ADMIN = 'vgibara@gmail.com';
 
 export async function adminRoutes(fastify: FastifyInstance) {
   
@@ -18,14 +19,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     try {
       const { token } = await (fastify as any).googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
       
-      // Fetch user info from Google
       const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${token.access_token}` }
       });
-      const user = await response.json();
+      const googleUser = await response.json();
 
-      if (user.email && AUTHORIZED_ADMINS.includes(user.email)) {
-        request.session.userEmail = user.email;
+      if (!googleUser.email) {
+        return reply.status(400).send('Google did not return an email.');
+      }
+
+      // Check if user is Super Admin or in AdminUser table
+      const isAdmin = googleUser.email === SUPER_ADMIN || await prisma.adminUser.findUnique({
+        where: { email: googleUser.email }
+      });
+
+      if (isAdmin) {
+        request.session.userEmail = googleUser.email;
         reply.redirect('/admin');
       } else {
         reply.status(403).send('<h1>Access Denied</h1><p>You are not authorized to access this admin panel.</p><a href="/">Go back</a>');
@@ -41,20 +50,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
     reply.redirect('/');
   });
 
-  // Middleware de sécurité pour l'admin
+  // Middleware de sécurité
   fastify.addHook('preHandler', async (request, reply) => {
-    // Skip protection for callback
     if (request.url.startsWith('/login/google/callback')) return;
-
     if (!request.session.userEmail) {
-      return reply.status(401).send('<h1>Admin</h1><p>You must be logged in.</p><a href="/login/google" class="btn btn-primary">Login with Google</a>');
+      return reply.status(401).send('<h1>Admin</h1><p>You must be logged in.</p><a href="/login/google">Login with Google</a>');
     }
   });
 
-  // Page d'accueil Admin : Liste des utilisateurs et création
+  // Page d'accueil Admin
   fastify.get('/admin', async (request, reply) => {
     const users = await prisma.user.findMany({
       include: { _count: { select: { jobs: true } } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const admins = await prisma.adminUser.findMany({
       orderBy: { createdAt: 'desc' }
     });
 
@@ -74,31 +85,36 @@ export async function adminRoutes(fastify: FastifyInstance) {
             </span>
           </div>
         </nav>
-        <div class="container">
+        <div class="container pb-5">
           <div class="row">
-            <div class="col-md-4">
+            <!-- Management Keys -->
+            <div class="col-md-8">
               <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                  <h5 class="card-title">Create New API Key</h5>
-                  <form method="POST" action="/admin/users/create">
-                    <div class="mb-3">
-                      <label class="form-label">Key Name (Identification)</label>
-                      <input type="text" name="name" class="form-control" required placeholder="e.g. Mobile App, Client X">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">Active API Keys</h5>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#createKeyForm">+ Create Key</button>
+                  </div>
+                  
+                  <div class="collapse mt-3 mb-3" id="createKeyForm">
+                    <div class="p-3 border rounded bg-light">
+                      <h6>New API Key</h6>
+                      <form method="POST" action="/admin/users/create">
+                        <div class="row g-2">
+                          <div class="col-md-5">
+                            <input type="text" name="name" class="form-control" required placeholder="Key Name (e.g. Website)">
+                          </div>
+                          <div class="col-md-5">
+                            <input type="email" name="email" class="form-control" placeholder="Email (Optional)">
+                          </div>
+                          <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100">Add</button>
+                          </div>
+                        </div>
+                      </form>
                     </div>
-                    <div class="mb-3">
-                      <label class="form-label">Email (Optional)</label>
-                      <input type="email" name="email" class="form-control">
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100">Generate Key</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-            
-            <div class="col-md-8">
-              <div class="card shadow-sm">
-                <div class="card-body">
-                  <h5 class="card-title">Active API Keys</h5>
+                  </div>
+
                   <table class="table table-hover mt-3">
                     <thead>
                       <tr>
@@ -119,82 +135,126 @@ export async function adminRoutes(fastify: FastifyInstance) {
                       `).join('')}
                     </tbody>
                   </table>
-                  <div class="mt-3">
-                    <a href="/admin/jobs" class="btn btn-outline-secondary">View All Translation Archives</a>
-                    <a href="/admin/queues" class="btn btn-outline-info">View Real-time Queues</a>
-                  </div>
+                  <a href="/admin/jobs" class="btn btn-outline-secondary">View All Translation Archives</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Management Admins -->
+            <div class="col-md-4">
+              <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                  <h5 class="card-title">Authorized Admins</h5>
+                  <p class="small text-muted">These Google accounts can access this dashboard.</p>
+                  
+                  <form method="POST" action="/admin/admins/create" class="mb-3">
+                    <div class="input-group input-group-sm">
+                      <input type="email" name="email" class="form-control" placeholder="google-email@gmail.com" required>
+                      <button class="btn btn-dark" type="submit">Authorize</button>
+                    </div>
+                  </form>
+
+                  <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between align-items-center bg-light">
+                      ${SUPER_ADMIN} <span class="badge bg-dark">Super Admin</span>
+                    </li>
+                    ${admins.map(a => `
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${a.email}
+                        <form method="POST" action="/admin/admins/delete" onsubmit="return confirm('Remove access?')">
+                          <input type="hidden" name="id" value="${a.id}">
+                          <button type="submit" class="btn btn-link text-danger p-0" style="text-decoration:none">&times;</button>
+                        </form>
+                      </li>
+                    `).join('')}
+                  </ul>
+                </div>
+              </div>
+
+              <div class="card shadow-sm">
+                <div class="card-body">
+                   <h5 class="card-title">Monitoring</h5>
+                   <a href="/admin/queues" class="btn btn-sm btn-outline-info w-100">Real-time Queues</a>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
       </body>
       </html>
     `;
     reply.type('text/html').send(html);
   });
 
-  // Route pour créer un utilisateur
+  // Action: Create Key
   fastify.post('/admin/users/create', async (request, reply) => {
     const { email, name } = request.body as { email: string, name?: string };
     await authService.createUser(name || 'Unnamed', email);
     reply.redirect('/admin');
   });
 
-  // Route pour voir les archives des jobs
+  // Action: Add Admin
+  fastify.post('/admin/admins/create', async (request, reply) => {
+    const { email } = request.body as { email: string };
+    try {
+      await prisma.adminUser.create({ data: { email } });
+    } catch (e) {}
+    reply.redirect('/admin');
+  });
+
+  // Action: Remove Admin
+  fastify.post('/admin/admins/delete', async (request, reply) => {
+    const { id } = request.body as { id: string };
+    await prisma.adminUser.delete({ where: { id } });
+    reply.redirect('/admin');
+  });
+
+  // Route: History
   fastify.get('/admin/jobs', async (request, reply) => {
     const jobs = await prisma.translationJob.findMany({
       take: 50,
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { email: true } } }
+      include: { user: { select: { email: true, name: true } } }
     });
 
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Translation Archives</title>
+        <title>Archives</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
       </head>
       <body class="bg-light">
-        <div class="container mt-5">
+        <div class="container mt-5 pb-5">
           <div class="d-flex justify-content-between align-items-center">
             <h2>Translation Archives (Last 50)</h2>
-            <a href="/admin" class="btn btn-sm btn-outline-primary">Back to Management</a>
+            <a href="/admin" class="btn btn-sm btn-outline-primary">Back</a>
           </div>
           <hr>
-          
           <div class="card shadow-sm">
-            <div class="table-responsive">
-              <table class="table table-sm table-hover mb-0">
-                <thead class="table-dark">
+            <table class="table table-sm table-hover mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th>Date</th>
+                  <th>Key Name</th>
+                  <th>Lang</th>
+                  <th>Status</th>
+                  <th>Meta</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${jobs.map(j => `
                   <tr>
-                    <th>Date</th>
-                    <th>User</th>
-                    <th>Lang</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <td><small>${j.createdAt.toLocaleString()}</small></td>
+                    <td><small>${j.user.name || j.user.email || 'N/A'}</small></td>
+                    <td><span class="badge bg-secondary">${j.sourceLang || '??'} → ${j.targetLang}</span></td>
+                    <td><span class="badge ${j.status === 'COMPLETED' ? 'bg-success' : j.status === 'FAILED' ? 'bg-danger' : 'bg-warning'}">${j.status}</span></td>
+                    <td><button class="btn btn-xs btn-light border p-0 px-1" onclick='alert(${JSON.stringify(JSON.stringify(j.metadata, null, 2))})'>info</button></td>
                   </tr>
-                </thead>
-                <tbody>
-                  ${jobs.map(j => `
-                    <tr>
-                      <td><small>${j.createdAt.toLocaleString()}</small></td>
-                      <td><small>${j.user.email || 'N/A'}</small></td>
-                      <td><span class="badge bg-secondary">${j.sourceLang || '??'} → ${j.targetLang}</span></td>
-                      <td>
-                        <span class="badge ${j.status === 'COMPLETED' ? 'bg-success' : j.status === 'FAILED' ? 'bg-danger' : 'bg-warning'}">
-                          ${j.status}
-                        </span>
-                      </td>
-                      <td>
-                         <button class="btn btn-xs btn-light border py-0 px-1" onclick='alert(${JSON.stringify(JSON.stringify(j.metadata, null, 2))})'>Meta</button>
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            </div>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
         </div>
       </body>
