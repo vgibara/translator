@@ -37,7 +37,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         request.session.userEmail = googleUser.email;
         reply.redirect('/admin');
       } else {
-        reply.status(403).send('<h1>Access Denied</h1><p>You are not authorized to access this admin panel.</p><a href="/">Go back</a>');
+        reply.status(403).type('text/html').send('<h1>Access Denied</h1><p>You are not authorized to access this admin panel.</p><a href="/">Go back</a>');
       }
     } catch (err) {
       reply.status(500).send('Authentication failed');
@@ -54,7 +54,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', async (request, reply) => {
     if (request.url.startsWith('/login/google/callback')) return;
     if (!request.session.userEmail) {
-      return reply.status(401).send('<h1>Admin</h1><p>You must be logged in.</p><a href="/login/google">Login with Google</a>');
+      return reply.status(401).type('text/html').send('<h1>Admin</h1><p>You must be logged in.</p><a href="/login/google" class="btn btn-primary">Login with Google</a>');
     }
   });
 
