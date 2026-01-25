@@ -11,23 +11,26 @@ async function main() {
   const client = new Client({
     connectionString,
     ssl: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false // Ignore self-signed certificates
     }
   });
+
+  // Force SSL for pg client
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
   try {
     await client.connect();
     console.log('Connected to database to fix permissions...');
     
-    // Extract user from connection string
-    const url = new URL(connectionString);
-    const user = url.username;
+    // Extract user from connection string or query it
+    const res = await client.query('SELECT current_user');
+    const user = res.rows[0].current_user;
 
-    await client.query(`GRANT ALL ON SCHEMA public TO ${user};`);
+    console.log(`Granting permissions to user: ${user}`);
+    await client.query(`GRANT ALL ON SCHEMA public TO "${user}";`);
     await client.query(`GRANT ALL ON SCHEMA public TO public;`);
-    await client.query(`ALTER SCHEMA public OWNER TO ${user};`);
     
-    console.log(`Permissions granted to user ${user} on schema public.`);
+    console.log(`Permissions successfully granted to ${user}.`);
   } catch (err: any) {
     console.warn('Could not grant permissions (might not be an admin):', err.message);
     // We don't exit with error here because sometimes the user doesn't have 
