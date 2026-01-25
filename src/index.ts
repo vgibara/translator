@@ -29,15 +29,16 @@ serverAdapter.setBasePath('/admin/queues');
 
 async function start() {
   try {
-    // Test Redis connection
-    await translationQueue.client.then(() => {
+    // Test Redis connection (non-blocking)
+    translationQueue.client.then(() => {
       console.log('Successfully connected to Redis');
     }).catch(err => {
-      console.error('Failed to connect to Redis:', err.message);
+      console.error('Redis connection error:', err.message);
     });
 
     // Register routes
     await fastify.register(translationRoutes);
+
     await fastify.register(serverAdapter.registerPlugin(), { prefix: '/admin/queues' });
 
     await fastify.listen({ port: env.PORT, host: '0.0.0.0' });

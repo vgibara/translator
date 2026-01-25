@@ -3,7 +3,7 @@ import { env } from '../config/env.js';
 
 export const connection: ConnectionOptions = {
   url: env.REDIS_URL,
-  // DO Managed Redis requires TLS and specific options for BullMQ/ioredis
+  // DO Managed Redis requires specific ioredis settings
   ...(env.REDIS_URL.startsWith('rediss://')
     ? {
         tls: {
@@ -12,7 +12,12 @@ export const connection: ConnectionOptions = {
       }
     : {}),
   maxRetriesPerRequest: null,
-  connectTimeout: 10000, // 10 seconds timeout
+  enableReadyCheck: false, // Recommended for some Redis providers
+  connectTimeout: 15000,
+  retryStrategy(times) {
+    return Math.min(times * 500, 2000);
+  },
 };
+
 
 
