@@ -16,8 +16,10 @@ export const translationQueue = new Queue(TRANSLATION_QUEUE_NAME, {
 });
 
 export interface TranslationJobData {
+  userId: string;
   json: any;
-  constraints?: Record<string, number>; // Path -> MaxLength
+  constraints?: Record<string, number>;
+ // Path -> MaxLength
   sourceLang?: string | null;
 
   targetLang: string;

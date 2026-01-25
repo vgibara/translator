@@ -30,3 +30,5 @@ tsconfig.tsbuildinfo
 # IDE
 .vscode/
 .idea/
+
+/src/generated/prisma

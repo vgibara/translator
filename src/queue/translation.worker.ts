@@ -5,6 +5,7 @@ import { extractStrings, reconstructJson } from '../utils/json-traversal.js';
 import { deeplService } from '../services/deepl.service.js';
 import { aiService } from '../services/ai.service.js';
 import { addCallbackJob } from './callback.queue.js';
+import { prisma } from '../utils/prisma.js';
 import * as deepl from 'deepl-node';
 import pino from 'pino';
 
@@ -14,9 +15,10 @@ export const translationWorker = new Worker(
   TRANSLATION_QUEUE_NAME,
   async (job: Job<TranslationJobData>) => {
     const { json, constraints, sourceLang, targetLang, callbackUrl, glossaryId, metadata } = job.data;
+    const dbJobId = metadata?.dbJobId;
 
     try {
-      logger.info({ jobId: job.id }, 'Processing translation job');
+      logger.info({ jobId: job.id, dbJobId }, 'Processing translation job');
 
       const nodes = extractStrings(json);
       const textsToTranslate = nodes.map((n) => n.value);
@@ -35,7 +37,6 @@ export const translationWorker = new Worker(
         translatedTexts = translatedTexts.concat(translatedChunk);
       }
 
-      // Check constraints and apply AI shortening if needed
       const processedTexts = await Promise.all(
         translatedTexts.map(async (text, index) => {
           const pathString = nodes[index].path.join('.');
@@ -54,11 +55,20 @@ export const translationWorker = new Worker(
         value: processedTexts[index],
       }));
 
-
-
       const translatedJson = reconstructJson(json, translatedNodes);
 
-      // Queue the callback instead of sending it directly
+      // Update PostgreSQL
+      if (dbJobId) {
+        await prisma.translationJob.update({
+          where: { id: dbJobId },
+          data: {
+            status: 'COMPLETED',
+            outputJson: translatedJson,
+          },
+        });
+      }
+
+      // Queue the callback
       await addCallbackJob({
         url: callbackUrl,
         payload: {
@@ -73,6 +83,16 @@ export const translationWorker = new Worker(
     } catch (error: any) {
       logger.error({ jobId: job.id, error: error.message }, 'Translation job failed');
       
+      if (dbJobId) {
+        await prisma.translationJob.update({
+          where: { id: dbJobId },
+          data: {
+            status: 'FAILED',
+            error: error.message,
+          },
+        });
+      }
+
       await addCallbackJob({
         url: callbackUrl,
         payload: {
@@ -86,6 +106,7 @@ export const translationWorker = new Worker(
       throw error;
     }
   },
+
   { connection, concurrency: 5 }
 );
 

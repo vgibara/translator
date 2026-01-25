@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  apiKey    String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  jobs      TranslationJob[]
+}
+
+model TranslationJob {
+  id            String   @id @default(uuid())
+  bullJobId     String?  @unique
+  status        String   // PENDING, COMPLETED, FAILED
+  sourceLang    String?
+  targetLang    String
+  callbackUrl   String
+  inputJson     Json
+  outputJson    Json?
+  error         String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+}

@@ -8,23 +8,36 @@ services:
     source_dir: /
     build_command: npm run build
     run_command: npm start
-    envs:
-      - key: REDIS_URL
-        scope: RUN_TIME
-        type: SECRET
-      - key: DEEPL_AUTH_KEY
-        scope: RUN_TIME
-        type: SECRET
-  - name: translator-worker
-    instance_count: 1
-    instance_size_slug: basic-xxs
-    source_dir: /
-    build_command: npm run build
-    run_command: node dist/worker.js
-    envs:
-      - key: REDIS_URL
-        scope: RUN_TIME
-        type: SECRET
-      - key: DEEPL_AUTH_KEY
-        scope: RUN_TIME
-        type: SECRET
+        envs:
+          - key: REDIS_URL
+            scope: RUN_TIME
+            type: SECRET
+          - key: DATABASE_URL
+            scope: RUN_TIME
+            type: SECRET
+          - key: DEEPL_AUTH_KEY
+            scope: RUN_TIME
+            type: SECRET
+          - key: AI_API_KEY
+            scope: RUN_TIME
+            type: SECRET
+      - name: translator-worker
+        instance_count: 1
+        instance_size_slug: basic-xxs
+        source_dir: /
+        build_command: npm run build
+        run_command: node dist/worker.js
+        envs:
+          - key: REDIS_URL
+            scope: RUN_TIME
+            type: SECRET
+          - key: DATABASE_URL
+            scope: RUN_TIME
+            type: SECRET
+          - key: DEEPL_AUTH_KEY
+            scope: RUN_TIME
+            type: SECRET
+          - key: AI_API_KEY
+            scope: RUN_TIME
+            type: SECRET
+    
