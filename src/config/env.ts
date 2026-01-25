@@ -10,6 +10,10 @@ const envSchema = z.object({
   CALLBACK_RETRY_LIMIT: z.string().default('5').transform(Number),
   TRANSLATION_RETRY_LIMIT: z.string().default('3').transform(Number),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  AI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default('llama-3.3-70b-versatile'), // Modèle Groq par défaut
+  AI_BASE_URL: z.string().default('https://api.groq.com/openai/v1'), // URL Groq
 });
+
 
 export const env = envSchema.parse(process.env);

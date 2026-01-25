@@ -3,16 +3,15 @@ import { connection } from './connection.js';
 import { TRANSLATION_QUEUE_NAME, TranslationJobData } from './translation.queue.js';
 import { extractStrings, reconstructJson } from '../utils/json-traversal.js';
 import { deeplService } from '../services/deepl.service.js';
+import { aiService } from '../services/ai.service.js';
 import { addCallbackJob } from './callback.queue.js';
-import * as deepl from 'deepl-node';
-import pino from 'pino';
 
 const logger = pino();
 
 export const translationWorker = new Worker(
   TRANSLATION_QUEUE_NAME,
   async (job: Job<TranslationJobData>) => {
-    const { json, sourceLang, targetLang, callbackUrl, glossaryId, metadata } = job.data;
+    const { json, constraints, sourceLang, targetLang, callbackUrl, glossaryId, metadata } = job.data;
 
     try {
       logger.info({ jobId: job.id }, 'Processing translation job');
@@ -34,10 +33,26 @@ export const translationWorker = new Worker(
         translatedTexts = translatedTexts.concat(translatedChunk);
       }
 
+      // Check constraints and apply AI shortening if needed
+      const processedTexts = await Promise.all(
+        translatedTexts.map(async (text, index) => {
+          const pathString = nodes[index].path.join('.');
+          const maxLength = constraints?.[pathString];
+
+          if (maxLength && text.length > maxLength) {
+            logger.info({ path: pathString, length: text.length, maxLength }, 'Text exceeds limit, shortening via AI...');
+            return await aiService.shortenText(text, maxLength, targetLang);
+          }
+          return text;
+        })
+      );
+
       const translatedNodes = nodes.map((node, index) => ({
         path: node.path,
-        value: translatedTexts[index],
+        value: processedTexts[index],
       }));
+
+
 
       const translatedJson = reconstructJson(json, translatedNodes);
 

@@ -4,7 +4,9 @@ import { addTranslationJob } from '../queue/translation.queue.js';
 
 const translateSchema = z.object({
   json: z.any(),
+  constraints: z.record(z.string(), z.number()).optional(),
   sourceLang: z.string().nullable().optional(),
+
   targetLang: z.string(),
   callbackUrl: z.string().url(),
   glossaryId: z.string().optional(),
