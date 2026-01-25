@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { env } from './config/env.js';
 import { translationRoutes } from './routes/translate.js';
+import { adminRoutes } from './routes/admin.js';
 import pino from 'pino';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
@@ -48,8 +49,9 @@ async function start() {
 
     // Register routes
     await fastify.register(translationRoutes);
-
+    await fastify.register(adminRoutes);
     await fastify.register(serverAdapter.registerPlugin(), { prefix: '/admin/queues' });
+
 
     await fastify.listen({ port: env.PORT, host: '0.0.0.0' });
     console.log(`Server listening on http://localhost:${env.PORT}`);
