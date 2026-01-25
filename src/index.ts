@@ -8,6 +8,9 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { FastifyAdapter } from '@bull-board/fastify';
 import { translationQueue } from './queue/translation.queue.js';
 import { callbackQueue } from './queue/callback.queue.js';
+import fastifyCookie from '@fastify/cookie';
+import fastifySession from '@fastify/session';
+import fastifyOauth2 from '@fastify/oauth2';
 
 const logger = pino({
   transport: {
@@ -25,6 +28,30 @@ const fastify = Fastify({
     } : undefined,
   },
 });
+
+// Register Cookie and Session
+fastify.register(fastifyCookie);
+fastify.register(fastifySession, {
+  secret: env.SESSION_SECRET,
+  cookie: { secure: env.NODE_ENV === 'production' }
+});
+
+// Register Google OAuth2
+if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+  fastify.register(fastifyOauth2, {
+    name: 'googleOAuth2',
+    scope: ['profile', 'email'],
+    credentials: {
+      client: {
+        id: env.GOOGLE_CLIENT_ID,
+        secret: env.GOOGLE_CLIENT_SECRET
+      },
+      auth: fastifyOauth2.GOOGLE_CONFIGURATION
+    },
+    startRedirectPath: '/login/google',
+    callbackUri: `${env.BASE_URL}/login/google/callback`
+  });
+}
 
 const serverAdapter = new FastifyAdapter();
 

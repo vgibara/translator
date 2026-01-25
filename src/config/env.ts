@@ -15,7 +15,12 @@ const envSchema = z.object({
   AI_MODEL: z.string().default('llama-3.3-70b-versatile'),
   AI_BASE_URL: z.string().default('https://api.groq.com/openai/v1'),
   ADMIN_API_KEY: z.string().default('admin-secret-change-me'),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  SESSION_SECRET: z.string().default('a-very-long-and-secure-session-secret-key'),
+  BASE_URL: z.string().default('http://localhost:3000'),
 });
+
 
 
 

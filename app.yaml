@@ -18,10 +18,22 @@ services:
           - key: DEEPL_AUTH_KEY
             scope: RUN_TIME
             type: SECRET
-          - key: AI_API_KEY
-            scope: RUN_TIME
-            type: SECRET
-      - name: translator-worker
+                - key: AI_API_KEY
+                  scope: RUN_TIME
+                  type: SECRET
+                - key: GOOGLE_CLIENT_ID
+                  scope: RUN_TIME
+                  type: SECRET
+                - key: GOOGLE_CLIENT_SECRET
+                  scope: RUN_TIME
+                  type: SECRET
+                - key: SESSION_SECRET
+                  scope: RUN_TIME
+                  type: SECRET
+                - key: BASE_URL
+                  scope: RUN_TIME
+            - name: translator-worker
+          
         instance_count: 1
         instance_size_slug: basic-xxs
         source_dir: /
