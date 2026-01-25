@@ -5,6 +5,13 @@ import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { FastifyAdapter } from '@bull-board/fastify';
 import { translationQueue } from './queue/translation.queue.js';
+import { callbackQueue } from './queue/callback.queue.js';
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+  },
+});
 
 const fastify = Fastify({
   logger: {
@@ -17,11 +24,13 @@ const fastify = Fastify({
   },
 });
 
-
 const serverAdapter = new FastifyAdapter();
 
 createBullBoard({
-  queues: [new BullMQAdapter(translationQueue)],
+  queues: [
+    new BullMQAdapter(translationQueue),
+    new BullMQAdapter(callbackQueue),
+  ],
   serverAdapter,
 });
 

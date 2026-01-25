@@ -3,7 +3,7 @@ import { connection } from './connection.js';
 import { TRANSLATION_QUEUE_NAME, TranslationJobData } from './translation.queue.js';
 import { extractStrings, reconstructJson } from '../utils/json-traversal.js';
 import { deeplService } from '../services/deepl.service.js';
-import { sendCallback, sendErrorCallback } from '../services/callback.service.js';
+import { addCallbackJob } from './callback.queue.js';
 import * as deepl from 'deepl-node';
 import pino from 'pino';
 
@@ -17,12 +17,9 @@ export const translationWorker = new Worker(
     try {
       logger.info({ jobId: job.id }, 'Processing translation job');
 
-      // 1. Extract strings
       const nodes = extractStrings(json);
       const textsToTranslate = nodes.map((n) => n.value);
 
-      // 2. Translate in batches if necessary (DeepL handles large arrays, but we should be mindful)
-      // For very massive JSON, we might want to split into chunks of 50 texts.
       const CHUNK_SIZE = 50;
       let translatedTexts: string[] = [];
 
@@ -37,7 +34,6 @@ export const translationWorker = new Worker(
         translatedTexts = translatedTexts.concat(translatedChunk);
       }
 
-      // 3. Reconstruct JSON
       const translatedNodes = nodes.map((node, index) => ({
         path: node.path,
         value: translatedTexts[index],
@@ -45,19 +41,32 @@ export const translationWorker = new Worker(
 
       const translatedJson = reconstructJson(json, translatedNodes);
 
-      // 4. Send callback
-      await sendCallback(callbackUrl, translatedJson, metadata);
+      // Queue the callback instead of sending it directly
+      await addCallbackJob({
+        url: callbackUrl,
+        payload: {
+          status: 'completed',
+          data: translatedJson,
+          metadata,
+          timestamp: new Date().toISOString(),
+        },
+      });
 
-      logger.info({ jobId: job.id }, 'Translation job completed');
+      logger.info({ jobId: job.id }, 'Translation completed and callback queued');
     } catch (error: any) {
       logger.error({ jobId: job.id, error: error.message }, 'Translation job failed');
       
-      // If it's the last attempt, notify the callback about the failure
-      if (job.attemptsMade + 1 >= (job.opts.attempts || 3)) {
-        await sendErrorCallback(callbackUrl, error.message, metadata);
-      }
+      await addCallbackJob({
+        url: callbackUrl,
+        payload: {
+          status: 'failed',
+          error: error.message,
+          metadata,
+          timestamp: new Date().toISOString(),
+        },
+      });
       
-      throw error; // Let BullMQ handle retries
+      throw error;
     }
   },
   { connection, concurrency: 5 }
