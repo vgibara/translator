@@ -36,17 +36,17 @@ export async function adminRoutes(fastify: FastifyInstance) {
             <div class="col-md-4">
               <div class="card shadow-sm mb-4">
                 <div class="card-body">
-                  <h5 class="card-title">Create New User</h5>
+                  <h5 class="card-title">Create New API Key</h5>
                   <form method="POST" action="/admin/users/create?auth=${env.ADMIN_API_KEY}">
                     <div class="mb-3">
-                      <label class="form-label">Email</label>
-                      <input type="email" name="email" class="form-control" required>
+                      <label class="form-label">Key Name (Identification)</label>
+                      <input type="text" name="name" class="form-control" required placeholder="e.g. Mobile App, Client X">
                     </div>
                     <div class="mb-3">
-                      <label class="form-label">Name (Optional)</label>
-                      <input type="text" name="name" class="form-control">
+                      <label class="form-label">Email (Optional)</label>
+                      <input type="email" name="email" class="form-control">
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">Generate API Key</button>
+                    <button type="submit" class="btn btn-primary w-100">Generate Key</button>
                   </form>
                 </div>
               </div>
@@ -55,11 +55,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
             <div class="col-md-8">
               <div class="card shadow-sm">
                 <div class="card-body">
-                  <h5 class="card-title">Users & API Keys</h5>
+                  <h5 class="card-title">Active API Keys</h5>
                   <table class="table table-hover mt-3">
                     <thead>
                       <tr>
-                        <th>User</th>
+                        <th>Name</th>
                         <th>API Key</th>
                         <th>Jobs</th>
                         <th>Created</th>
@@ -68,7 +68,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     <tbody>
                       ${users.map(u => `
                         <tr>
-                          <td><strong>${u.name || 'No Name'}</strong><br><small class="text-muted">${u.email}</small></td>
+                          <td><strong>${u.name || 'Unnamed'}</strong>${u.email ? `<br><small class="text-muted">${u.email}</small>` : ''}</td>
                           <td><code>${u.apiKey}</code></td>
                           <td><span class="badge bg-info">${u._count.jobs}</span></td>
                           <td>${u.createdAt.toLocaleDateString()}</td>

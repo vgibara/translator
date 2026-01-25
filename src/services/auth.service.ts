@@ -8,7 +8,7 @@ export class AuthService {
     });
   }
 
-  async createUser(email: string, name?: string) {
+  async createUser(name: string, email?: string) {
     const apiKey = `tr_${crypto.randomBytes(24).toString('hex')}`;
     return await prisma.user.create({
       data: {

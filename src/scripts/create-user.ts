@@ -2,19 +2,20 @@ import { authService } from '../services/auth.service.js';
 import { prisma } from '../utils/prisma.js';
 
 async function main() {
-  const email = process.argv[2];
-  const name = process.argv[3];
+  const name = process.argv[2];
+  const email = process.argv[3];
 
-  if (!email) {
-    console.error('Usage: node scripts/create-user.js <email> [name]');
+  if (!name) {
+    console.error('Usage: node scripts/create-user.js <name> [email]');
     process.exit(1);
   }
 
   try {
-    const user = await authService.createUser(email, name);
-    console.log('User created successfully!');
+    const user = await authService.createUser(name, email);
+    console.log('API Key created successfully!');
     console.log('---------------------------');
-    console.log(`Email:   ${user.email}`);
+    console.log(`Name:    ${user.name}`);
+    if (user.email) console.log(`Email:   ${user.email}`);
     console.log(`API Key: ${user.apiKey}`);
     console.log('---------------------------');
     console.log('KEEP THIS KEY SECRET!');
