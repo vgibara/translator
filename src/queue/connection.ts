@@ -1,9 +1,14 @@
 import { ConnectionOptions } from 'bullmq';
 import { env } from '../config/env.js';
 
+const redisUrl = new URL(env.REDIS_URL);
+
 export const connection: ConnectionOptions = {
-  url: env.REDIS_URL,
-  // DO Managed Redis requires specific ioredis settings
+  host: redisUrl.hostname,
+  port: parseInt(redisUrl.port),
+  password: decodeURIComponent(redisUrl.password),
+  username: redisUrl.username || undefined,
+  // DO Managed Redis requires TLS
   ...(env.REDIS_URL.startsWith('rediss://')
     ? {
         tls: {
@@ -12,12 +17,10 @@ export const connection: ConnectionOptions = {
       }
     : {}),
   maxRetriesPerRequest: null,
-  enableReadyCheck: false, // Recommended for some Redis providers
-  connectTimeout: 15000,
-  retryStrategy(times) {
-    return Math.min(times * 500, 2000);
-  },
+  enableReadyCheck: false,
+  connectTimeout: 20000, // Increase to 20s for DO private network
 };
+
 
 
 
