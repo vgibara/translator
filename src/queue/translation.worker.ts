@@ -5,6 +5,8 @@ import { extractStrings, reconstructJson } from '../utils/json-traversal.js';
 import { deeplService } from '../services/deepl.service.js';
 import { aiService } from '../services/ai.service.js';
 import { addCallbackJob } from './callback.queue.js';
+import * as deepl from 'deepl-node';
+import pino from 'pino';
 
 const logger = pino();
 
