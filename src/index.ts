@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { env } from './config/env.js';
 import { translationRoutes } from './routes/translate.js';
+import pino from 'pino';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { FastifyAdapter } from '@bull-board/fastify';
