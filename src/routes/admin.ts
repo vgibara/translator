@@ -351,40 +351,67 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                         ${jobs.map(j => `
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
-                                    ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="font-bold">${j.user.name || 'N/A'}</div>
-                                    <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
-                                        <span class="text-gray-400">→</span>
-                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
+                                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                                            <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
+                                                                ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                                            </td>
+                                                            <td class="px-6 py-4">
+                                                                <div class="font-bold">${j.user.name || 'N/A'}</div>
+                                                                <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
+                                                            </td>
+                                                            <td class="px-6 py-4 text-center">
+                                                                <div class="flex items-center justify-center gap-2">
+                                                                    <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
+                                                                    <span class="text-gray-400">→</span>
+                                                                    <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td class="px-6 py-4 text-center">
+                                                                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                                    j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
+                                                                    j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
+                                                                    'bg-yellow-100 text-yellow-600'
+                                                                }">
+                                                                    ${j.status}
+                                                                </span>
+                                                            </td>
+                                                            <td class="px-6 py-4 text-right">
+                                                                <button 
+                                                                    onclick='showDetails(${JSON.stringify(JSON.stringify({ metadata: j.metadata, error: j.error }, null, 2))})' 
+                                                                    class="text-blue-500 hover:text-blue-700 font-bold px-2">Détails</button>
+                                                            </td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                        j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
-                                        j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
-                                        'bg-yellow-100 text-yellow-600'
-                                    }">
-                                        ${j.status}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <button onclick='alert(${JSON.stringify(JSON.stringify(j.metadata, null, 2))})' class="text-blue-500 hover:text-blue-700 font-bold px-2">Détails</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    reply.type('text/html').send(layout(content, request.session.userEmail));
-  });
-}
+                            
+                                    <!-- Modal Details -->
+                                    <div id="detailsModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-gray-200 dark:border-gray-700">
+                                            <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                                                <h3 class="text-xl font-bold">Détails du Job</h3>
+                                                <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+                                            </div>
+                                            <div class="p-6">
+                                                <pre id="detailsContent" class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-auto max-h-[60vh] text-xs font-mono"></pre>
+                                            </div>
+                                            <div class="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+                                                <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 px-6 py-2 rounded-xl font-bold">Fermer</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                            
+                                    <script>
+                                        function showDetails(jsonString) {
+                                            const data = JSON.parse(jsonString);
+                                            document.getElementById('detailsContent').textContent = JSON.stringify(data, null, 2);
+                                            document.getElementById('detailsModal').classList.remove('hidden');
+                                        }
+                                    </script>
+                                `;
+                                reply.type('text/html').send(layout(content, request.session.userEmail));
+                              });
+                            }
+                            
