@@ -1,5 +1,5 @@
-import { authService } from '../src/services/auth.service.js';
-import { prisma } from '../src/utils/prisma.js';
+import { authService } from '../services/auth.service.js';
+import { prisma } from '../utils/prisma.js';
 
 async function main() {
   const email = process.argv[2];
