@@ -11,6 +11,7 @@ import { callbackQueue } from './queue/callback.queue.js';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 import fastifyOauth2 from '@fastify/oauth2';
+import fastifyFormbody from '@fastify/formbody';
 
 const logger = pino({
   transport: {
@@ -29,7 +30,8 @@ const fastify = Fastify({
   },
 });
 
-// Register Cookie and Session
+// Register Plugins
+fastify.register(fastifyFormbody);
 fastify.register(fastifyCookie);
 fastify.register(fastifySession, {
   secret: env.SESSION_SECRET,
