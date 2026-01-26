@@ -16,7 +16,7 @@ const SUPER_ADMIN = 'vgibara@gmail.com';
  */
 const layout = (content: string, userEmail?: string) => `
 <!DOCTYPE html>
-<html lang="fr" class="">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -47,97 +47,76 @@ const layout = (content: string, userEmail?: string) => `
             }
         }
         
-        // Initial theme check
         if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         }
     </script>
-    <style>
-        .font-sans { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-    </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-200">
-
-    <!--Navbar -->
     <nav class="bg-gray-800 dark:bg-gray-950 text-white sticky top-0 z-50 shadow-lg">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-6">
                 <a href="/admin" class="text-xl font-bold flex items-center gap-2">
                     <span>🌐</span> Translator
                 </a>
-                <div class="hidden md:flex gap-4">
-                    <a href="/admin" class="px-3 py-1 rounded hover:bg-gray-700 transition-colors">Clés API</a>
-                    <a href="/admin/jobs" class="px-3 py-1 rounded hover:bg-gray-700 transition-colors">Archives</a>
-                    <a href="/admin/queues" class="px-3 py-1 rounded hover:bg-gray-700 transition-colors">Files d'attente</a>
+                <div class="hidden md:flex gap-4 text-sm font-medium text-gray-300">
+                    <a href="/admin" class="px-3 py-1 rounded hover:bg-gray-700 hover:text-white transition-colors">Clés API</a>
+                    <a href="/admin/jobs" class="px-3 py-1 rounded hover:bg-gray-700 hover:text-white transition-colors">Archives</a>
+                    <a href="/admin/queues" class="px-3 py-1 rounded hover:bg-gray-700 hover:text-white transition-colors">Files d'attente</a>
                 </div>
             </div>
             
             <div class="flex items-center gap-4">
-                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-700 transition-colors" title="Toggle Theme">
+                <button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-gray-700 transition-colors">
                     <span class="dark:hidden">🌙</span>
                     <span class="hidden dark:inline">☀️</span>
                 </button>
                 ${userEmail ? `
                     <div class="flex items-center gap-3 pl-4 border-l border-gray-700">
                         <span class="hidden sm:inline text-sm text-gray-300">${userEmail}</span>
-                        <a href="/logout" class="text-sm bg-red-600 hover:bg-red-700 px-3 py-1 rounded transition-colors">Quitter</a>
+                        <a href="/logout" class="text-xs bg-red-600 hover:bg-red-700 px-3 py-1 rounded transition-colors font-bold uppercase tracking-wider">Quitter</a>
                     </div>
                 ` : ''}
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
     <main class="container mx-auto px-4 mt-8 flex-grow">
         ${content}
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 dark:bg-gray-950 text-gray-400 py-6 mt-12">
-        <div class="container mx-auto text-center text-sm">
-            &copy; 2026 DeepL Translator API | Design System v2.0
+    <footer class="bg-gray-800 dark:bg-gray-950 text-gray-400 py-8 mt-12 border-t border-gray-700/50">
+        <div class="container mx-auto text-center text-xs font-medium tracking-widest uppercase">
+            &copy; 2026 DeepL Translator API | Intelligent Content Gateway
         </div>
     </footer>
-
 </body>
 </html>
 `;
 
 export async function adminRoutes(fastify: FastifyInstance) {
   
-  // Login Callback
+  // Auth Callback
   fastify.get('/login/google/callback', async function (request, reply) {
     try {
       const { token } = await (fastify as any).googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(request);
-      
       const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { Authorization: `Bearer ${token.access_token}` }
       });
       const googleUser = await response.json();
 
-      if (!googleUser.email) {
-        return reply.status(400).send('Google did not return an email.');
-      }
+      if (!googleUser.email) return reply.status(400).send('No email returned');
 
-      const isAdmin = googleUser.email === SUPER_ADMIN || await prisma.adminUser.findUnique({
-        where: { email: googleUser.email }
-      });
+      const isAdmin = googleUser.email === SUPER_ADMIN || await prisma.adminUser.findUnique({ where: { email: googleUser.email } });
 
       if (isAdmin) {
         request.session.userEmail = googleUser.email;
         reply.redirect('/admin');
       } else {
-        reply.status(403).type('text/html').send(layout(`
-            <div class="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
-                <div class="text-red-500 text-5xl mb-4">🚫</div>
-                <h1 class="text-2xl font-bold mb-2">Accès Refusé</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">Vous n'êtes pas autorisé à accéder à ce panel.</p>
-                <a href="/" class="text-blue-500 hover:underline">Retour</a>
-            </div>
-        `));
+        reply.status(403).type('text/html').send(layout('<div class="max-w-md mx-auto text-center bg-white dark:bg-gray-800 p-12 rounded-2xl shadow-xl border border-red-100 dark:border-red-900/30 mt-20"><h1 class="text-4xl mb-4">🚫</h1><h2 class="text-2xl font-bold mb-2">Accès Refusé</h2><p class="text-gray-500 mb-8">Votre compte n\'est pas autorisé.</p><a href="/" class="text-blue-500 font-bold hover:underline">Retour</a></div>'));
       }
     } catch (err) {
-      reply.status(500).send('Authentication failed');
+      reply.status(500).send('Auth error');
     }
   });
 
@@ -151,12 +130,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     if (request.url.startsWith('/login/google/callback')) return;
     if (!request.session.userEmail) {
       return reply.status(401).type('text/html').send(layout(`
-        <div class="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center mt-20">
-            <h1 class="text-2xl font-bold mb-4">Administration</h1>
-            <p class="text-gray-500 dark:text-gray-400 mb-8">Veuillez vous authentifier pour accéder à la gestion.</p>
-            <a href="/login/google" class="inline-flex items-center gap-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-white px-6 py-3 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all font-medium">
-                <img src="https://www.google.com/favicon.ico" class="w-5 h-5" alt="Google">
-                Connexion avec Google
+        <div class="max-w-md mx-auto bg-white dark:bg-gray-800 p-10 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 text-center mt-20">
+            <h1 class="text-2xl font-black mb-4 uppercase tracking-tighter">Administration</h1>
+            <p class="text-gray-500 dark:text-gray-400 mb-10 text-sm">Veuillez vous authentifier pour accéder à la gestion du service.</p>
+            <a href="/login/google" class="inline-flex items-center gap-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-8 py-4 rounded-xl hover:scale-105 transition-all font-bold shadow-lg shadow-blue-500/10">
+                <img src="https://www.google.com/favicon.ico" class="w-5 h-5" alt="G">
+                Continuer avec Google
             </a>
         </div>
       `));
@@ -166,23 +145,18 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // API: Get Job Details
   fastify.get('/admin/jobs/:id/data', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const job = await prisma.translationJob.findUnique({
+    return await prisma.translationJob.findUnique({
       where: { id },
       include: { callbackLogs: { orderBy: { createdAt: 'desc' } } }
     });
-    return job;
   });
 
-  // Dashboard Page
+  // Main Admin Page
   fastify.get('/admin', async (request, reply) => {
-    const users = await prisma.user.findMany({
-      include: { _count: { select: { jobs: true } } },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const admins = await prisma.adminUser.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
+    const [users, admins] = await Promise.all([
+      prisma.user.findMany({ include: { _count: { select: { jobs: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.adminUser.findMany({ orderBy: { createdAt: 'desc' } })
+    ]);
 
     const stats = {
       totalKeys: users.length,
@@ -191,116 +165,109 @@ export async function adminRoutes(fastify: FastifyInstance) {
     };
 
     const content = `
-        <!-- Stats Bar -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Clés API Actives</p>
-                <h3 class="text-3xl font-bold">${stats.totalKeys}</h3>
-                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1 rounded-full mt-4">
-                    <div class="bg-blue-500 h-1 rounded-full" style="width: 70%"></div>
-                </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Clés API Actives</p>
+                <h3 class="text-4xl font-black">${stats.totalKeys}</h3>
+                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-6 overflow-hidden"><div class="bg-blue-500 h-full w-2/3"></div></div>
             </div>
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Total Traductions</p>
-                <h3 class="text-3xl font-bold">${stats.totalJobs}</h3>
-                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1 rounded-full mt-4">
-                    <div class="bg-green-500 h-1 rounded-full" style="width: 85%"></div>
-                </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Total Traductions</p>
+                <h3 class="text-4xl font-black">${stats.totalJobs}</h3>
+                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-6 overflow-hidden"><div class="bg-green-500 h-full w-4/5"></div></div>
             </div>
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Administrateurs</p>
-                <h3 class="text-3xl font-bold">${stats.totalAdmins}</h3>
-                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1 rounded-full mt-4">
-                    <div class="bg-purple-500 h-1 rounded-full" style="width: 40%"></div>
-                </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Admins</p>
+                <h3 class="text-4xl font-black">${stats.totalAdmins}</h3>
+                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-6 overflow-hidden"><div class="bg-purple-500 h-full w-1/3"></div></div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Left: API Keys -->
-            <div class="lg:col-span-2">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                        <h2 class="text-lg font-bold">Gestion des Clés API</h2>
-                        <button onclick="document.getElementById('keyModal').classList.remove('hidden')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all">+ Nouvelle Clé</button>
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/30">
+                        <h2 class="font-black uppercase tracking-tight text-sm">Gestion des Clés API</h2>
+                        <button onclick="document.getElementById('keyModal').classList.remove('hidden')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-blue-700 transition-all">+ Nouvelle Clé</button>
                     </div>
-                    <div class="overflow-x-auto text-sm">
-                        <table class="w-full">
-                            <thead class="bg-gray-50 dark:bg-gray-900/50">
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
                                 <tr>
-                                    <th class="px-6 py-4 text-left font-semibold">Identification</th>
-                                    <th class="px-6 py-4 text-left font-semibold">Clé API</th>
-                                    <th class="px-6 py-4 text-center font-semibold">Jobs</th>
-                                    <th class="px-6 py-4 text-right font-semibold">Création</th>
+                                    <th class="px-6 py-4 text-left">Identification</th>
+                                    <th class="px-6 py-4 text-left">Clé API</th>
+                                    <th class="px-6 py-4 text-center">Jobs</th>
+                                    <th class="px-6 py-4 text-right">Date</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                                 ${users.map(u => `
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                        <td class="px-6 py-4">
-                                            <div class="font-bold">${u.name || 'Sans nom'}</div>
-                                            <div class="text-gray-500 text-xs">${u.email || ''}</div>
-                                        </td>
-                                        <td class="px-6 py-4 font-mono text-blue-500 dark:text-blue-400">${u.apiKey}</td>
-                                        <td class="px-6 py-4 text-center">
-                                            <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold">${u._count.jobs}</span>
-                                        </td>
-                                        <td class="px-6 py-4 text-right text-gray-500">${u.createdAt.toLocaleDateString()}</td>
+                                    <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                                        <td class="px-6 py-4"><div class="font-bold">${u.name || 'Sans nom'}</div><div class="text-[10px] text-gray-400 font-medium italic">${u.email || ''}</div></td>
+                                        <td class="px-6 py-4 font-mono text-blue-500 dark:text-blue-400 text-xs">${u.apiKey}</td>
+                                        <td class="px-6 py-4 text-center"><span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-[10px] font-black">${u._count.jobs}</span></td>
+                                        <td class="px-6 py-4 text-right text-gray-400 text-[10px] font-bold uppercase">${u.createdAt.toLocaleDateString()}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
                         </table>
                     </div>
                 </div>
+                <div class="text-center"><a href="/admin/jobs" class="inline-block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:shadow-lg transition-all">Consulter les Archives</a></div>
             </div>
 
-            <!-- Right: Admin Access -->
-            <div class="space-y-8">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                    <h2 class="text-lg font-bold mb-4">Accès Administrateur</h2>
-                    <form method="POST" action="/admin/admins/create" class="flex gap-2 mb-6">
-                        <input type="email" name="email" placeholder="Email Google" class="flex-grow bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
-                        <button type="submit" class="bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 px-4 py-2 rounded-lg text-sm font-bold">Ajouter</button>
+            <div class="space-y-6">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                    <h2 class="font-black uppercase tracking-tight text-sm mb-6">Administrateurs Google</h2>
+                    <form method="POST" action="/admin/admins/create" class="flex gap-2 mb-8">
+                        <input type="email" name="email" placeholder="Email Google" class="flex-grow bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-500 outline-none" required>
+                        <button type="submit" class="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-4 py-3 rounded-xl text-xs font-black uppercase">Ok</button>
                     </form>
-                    
                     <div class="space-y-3">
-                        <div class="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-                            <span class="text-sm font-medium">${SUPER_ADMIN}</span>
-                            <span class="text-[10px] bg-gray-800 text-white px-2 py-0.5 rounded uppercase font-bold tracking-widest">Master</span>
+                        <div class="flex justify-between items-center p-4 rounded-xl bg-gray-50/50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+                            <span class="text-xs font-bold">${SUPER_ADMIN}</span>
+                            <span class="text-[8px] bg-gray-900 text-white px-2 py-1 rounded uppercase font-black tracking-[0.2em]">Master</span>
                         </div>
                         ${admins.map(a => `
-                            <div class="flex justify-between items-center p-3 rounded-lg border border-gray-100 dark:border-gray-700">
-                                <span class="text-sm">${a.email}</span>
+                            <div class="flex justify-between items-center p-4 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-gray-50/30 dark:hover:bg-gray-900/30 transition-all">
+                                <span class="text-xs font-medium">${a.email}</span>
                                 <form method="POST" action="/admin/admins/delete" onsubmit="return confirm('Supprimer cet accès ?')">
                                     <input type="hidden" name="id" value="${a.id}">
-                                    <button type="submit" class="text-red-500 hover:text-red-700 text-xl font-bold px-2">&times;</button>
+                                    <button type="submit" class="text-red-500 hover:scale-125 transition-transform font-black text-lg px-2">&times;</button>
                                 </form>
                             </div>
                         `).join('')}
                     </div>
                 </div>
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white">
+                    <h2 class="font-black uppercase tracking-widest text-[10px] mb-4 opacity-80">Monitoring Live</h2>
+                    <a href="/admin/queues" class="flex items-center justify-between bg-white/10 hover:bg-white/20 p-4 rounded-xl transition-all border border-white/10 group">
+                        <span class="text-sm font-bold">Files d'attente</span>
+                        <span class="group-hover:translate-x-1 transition-transform">→</span>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- Modal Create Key -->
-        <div id="keyModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-200 dark:border-gray-700">
-                <div class="p-6">
-                    <h3 class="text-xl font-bold mb-4">Générer une clé API</h3>
+        <div id="keyModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-200 dark:border-gray-700">
+                <div class="p-8">
+                    <h3 class="text-2xl font-black mb-2 tracking-tighter uppercase">Générer une clé</h3>
+                    <p class="text-gray-400 text-xs font-medium mb-8 uppercase tracking-widest">Nouvel identifiant API</p>
                     <form method="POST" action="/admin/users/create">
-                        <div class="space-y-4">
+                        <div class="space-y-6">
                             <div>
-                                <label class="text-xs font-bold text-gray-400 uppercase">Nom de la clé</label>
-                                <input type="text" name="name" required placeholder="ex: App iOS Client X" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nom de la clé</label>
+                                <input type="text" name="name" required placeholder="ex: Application Mobile iOS" class="w-full mt-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                             </div>
                             <div>
-                                <label class="text-xs font-bold text-gray-400 uppercase">Email associé (Optionnel)</label>
-                                <input type="email" name="email" placeholder="client@exemple.com" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none">
+                                <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email (Optionnel)</label>
+                                <input type="email" name="email" placeholder="client@exemple.com" class="w-full mt-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4 text-sm focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                             </div>
                         </div>
-                        <div class="mt-8 flex gap-3">
-                            <button type="button" onclick="document.getElementById('keyModal').classList.add('hidden')" class="flex-grow bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 py-3 rounded-xl font-bold">Annuler</button>
-                            <button type="submit" class="flex-grow bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-500/20">Créer la clé</button>
+                        <div class="mt-10 flex gap-4">
+                            <button type="button" onclick="document.getElementById('keyModal').classList.add('hidden')" class="flex-grow bg-gray-100 dark:bg-gray-700 text-gray-500 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Annuler</button>
+                            <button type="submit" class="flex-grow bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-500/20">Valider</button>
                         </div>
                     </form>
                 </div>
@@ -342,42 +309,45 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
 
     const content = `
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Archives des Traductions</h1>
-            <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-lg text-sm transition-all hover:shadow-sm">← Retour</a>
+        <div class="flex justify-between items-center mb-10">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter uppercase">Archives</h1>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Historique des 50 dernières traductions</p>
+            </div>
+            <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all">← Retour</a>
         </div>
 
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div class="overflow-x-auto text-xs md:text-sm">
-                <table class="w-full">
-                    <thead class="bg-gray-50 dark:bg-gray-900/50">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
                         <tr>
-                            <th class="px-6 py-4 text-left font-semibold">Date</th>
-                            <th class="px-6 py-4 text-left font-semibold">Source Key</th>
-                            <th class="px-6 py-4 text-center font-semibold">Traductions</th>
-                            <th class="px-6 py-4 text-center font-semibold">Statut</th>
-                            <th class="px-6 py-4 text-right font-semibold">Action</th>
+                            <th class="px-6 py-4 text-left">Date / Heure</th>
+                            <th class="px-6 py-4 text-left">Source Key</th>
+                            <th class="px-6 py-4 text-center">Langues</th>
+                            <th class="px-6 py-4 text-center">Statut</th>
+                            <th class="px-6 py-4 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
                         ${jobs.map(j => `
-                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
+                            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
                                     ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="font-bold">${j.user.name || 'N/A'}</div>
-                                    <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
+                                    <div class="font-bold text-xs">${j.user.name || 'N/A'}</div>
+                                    <div class="text-[9px] text-gray-400 font-mono mt-0.5 truncate max-w-[200px]">${j.callbackUrl}</div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
-                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
-                                        <span class="text-gray-400">→</span>
-                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
+                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
+                                        <span class="text-gray-300">→</span>
+                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
-                                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${ 
+                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${ 
                                         j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
                                         j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
                                         'bg-yellow-100 text-yellow-600'
@@ -389,7 +359,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                                     <button 
                                         onclick="loadJobDetails('${j.id}')" 
                                         id="btn-${j.id}"
-                                        class="text-blue-500 hover:text-blue-700 font-bold px-2 transition-all">Détails</button>
+                                        class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -398,40 +368,36 @@ export async function adminRoutes(fastify: FastifyInstance) {
             </div>
         </div>
 
-        <!-- Modal Details -->
-        <div id="detailsModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
-                <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
-                    <h3 class="text-xl font-bold">Détails de la Traduction</h3>
-                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white text-3xl">&times;</button>
+        <!-- Modal -->
+        <div id="detailsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-[2rem] shadow-2xl max-w-5xl w-full overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[85vh]">
+                <div class="p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                    <h3 class="text-2xl font-black uppercase tracking-tighter">Détails Traduction</h3>
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="text-gray-400 hover:text-white text-4xl font-light">&times;</button>
                 </div>
                 
-                <!-- Tabs Header -->
-                <div class="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/30">
-                    <button onclick="switchTab('input')" id="tab-input" class="px-6 py-3 text-sm font-bold border-b-2 border-blue-500 text-blue-600">📥 Source</button>
-                    <button onclick="switchTab('output')" id="tab-output" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📤 Résultat</button>
-                    <button onclick="switchTab('logs')" id="tab-logs" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📜 Logs Callback</button>
-                    <button onclick="switchTab('meta')" id="tab-meta" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">ℹ️ Meta</button>
+                <div class="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-950/50">
+                    <button onclick="switchTab('input')" id="tab-input" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-blue-500 text-blue-600">📥 Source</button>
+                    <button onclick="switchTab('output')" id="tab-output" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">📤 Résultat</button>
+                    <button onclick="switchTab('logs')" id="tab-logs" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">📜 Callbacks</button>
+                    <button onclick="switchTab('meta')" id="tab-meta" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">ℹ️ Meta</button>
                 </div>
 
-                <!-- Tab Contents -->
-                <div class="p-6 overflow-auto flex-grow bg-white dark:bg-gray-800">
+                <div class="p-8 overflow-auto flex-grow bg-white dark:bg-gray-800">
                     <div id="content-input" class="tab-content">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap"></pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl text-[11px] font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800"></pre>
                     </div>
                     <div id="content-output" class="tab-content hidden">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap"></pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl text-[11px] font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800"></pre>
                     </div>
-                    <div id="content-logs" class="tab-content hidden">
-                        <div class="space-y-3"></div>
-                    </div>
+                    <div id="content-logs" class="tab-content hidden space-y-4"></div>
                     <div id="content-meta" class="tab-content hidden">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap"></pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl text-[11px] font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800"></pre>
                     </div>
                 </div>
 
-                <div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
-                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 px-8 py-2 rounded-xl font-bold transition-transform hover:scale-105">Fermer</button>
+                <div class="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:scale-105 transition-transform">Fermer</button>
                 </div>
             </div>
         </div>
@@ -439,63 +405,52 @@ export async function adminRoutes(fastify: FastifyInstance) {
         <script>
             function switchTab(tab) {
                 ['input', 'output', 'logs', 'meta'].forEach(t => {
-                    document.getElementById('tab-' + t).classList.remove('border-blue-500', 'text-blue-600');
-                    document.getElementById('tab-' + t).classList.add('border-transparent', 'text-gray-500');
-                    document.getElementById('content-' + t).classList.add('hidden');
+                    const btn = document.getElementById('tab-' + t);
+                    const content = document.getElementById('content-' + t);
+                    btn.classList.remove('border-blue-500', 'text-blue-600');
+                    btn.classList.add('border-transparent', 'text-gray-400');
+                    content.classList.add('hidden');
                 });
-                document.getElementById('tab-' + tab).classList.add('border-blue-500', 'text-blue-600');
-                document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-gray-500');
+                const activeBtn = document.getElementById('tab-' + tab);
+                activeBtn.classList.add('border-blue-500', 'text-blue-600');
+                activeBtn.classList.remove('border-transparent', 'text-gray-400');
                 document.getElementById('content-' + tab).classList.remove('hidden');
             }
 
             async function loadJobDetails(id) {
                 const btn = document.getElementById('btn-' + id);
-                const originalText = btn.textContent;
                 btn.textContent = '...';
-                btn.disabled = true;
-
+                
                 try {
-                    const response = await fetch(`/admin/jobs/${id}/data`);
+                    const response = await fetch('/admin/jobs/' + id + '/data');
                     const data = await response.json();
                     
                     document.querySelector('#content-input pre').textContent = JSON.stringify(data.inputJson, null, 2);
-                    document.querySelector('#content-output pre').textContent = data.outputJson ? JSON.stringify(data.outputJson, null, 2) : "Aucun résultat disponible";
-                    document.querySelector('#content-meta pre').textContent = JSON.stringify({
-                        metadata: data.metadata, 
-                        error: data.error,
-                        bullJobId: data.bullJobId 
-                    }, null, 2);
+                    document.querySelector('#content-output pre').textContent = data.outputJson ? JSON.stringify(data.outputJson, null, 2) : "En attente de traduction...";
+                    document.querySelector('#content-meta pre').textContent = JSON.stringify({ metadata: data.metadata, error: data.error, bullId: data.bullJobId }, null, 2);
                     
-                    const logsDiv = document.querySelector('#content-logs div');
+                    const logsDiv = document.getElementById('content-logs');
                     logsDiv.innerHTML = '';
                     if (!data.callbackLogs || data.callbackLogs.length === 0) {
-                        logsDiv.innerHTML = '<p class="text-gray-500 italic text-center py-8">Aucune tentative de rappel enregistrée.</p>';
+                        logsDiv.innerHTML = '<p class="text-center py-10 text-xs font-bold text-gray-400 uppercase tracking-widest">Aucun log de callback</p>';
                     } else {
                         data.callbackLogs.forEach(log => {
                             const date = new Date(log.createdAt).toLocaleString();
-                            const isSuccess = log.status >= 200 && log.status < 300;
-                            logsDiv.innerHTML += `
-                                <div class="p-3 rounded-lg border 
-                                    
-                                    ${isSuccess ? 'border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800'}
-                                ">
-                                    <div class="flex justify-between font-bold text-xs mb-1">
-                                        <span class="${isSuccess ? 'text-green-600' : 'text-red-600'}">Status: ${log.status}</span>
-                                        <span class="text-gray-400">${date}</span>
-                                    </div>
-                                    <div class="text-[10px] font-mono break-all opacity-75">${log.error || log.response || 'No response body'}</div>
-                                </div>
-                            `;
+                            const isOk = log.status >= 200 && log.status < 300;
+                            const logEl = document.createElement('div');
+                            logEl.className = 'p-4 rounded-2xl border ' + (isOk ? 'border-green-100 bg-green-50/50 dark:border-green-900/30 dark:bg-green-900/10' : 'border-red-100 bg-red-50/50 dark:border-red-900/30 dark:bg-red-900/10');
+                            logEl.innerHTML = '<div class="flex justify-between items-center mb-2"><span class="text-[10px] font-black uppercase ' + (isOk ? 'text-green-600' : 'text-red-600') + '">Status ' + log.status + '</span><span class="text-[9px] font-bold text-gray-400">' + date + '</span></div>' + 
+                                             '<div class="text-[10px] font-mono opacity-70 break-all">' + (log.error || log.response || 'No response') + '</div>';
+                            logsDiv.appendChild(logEl);
                         });
                     }
 
                     switchTab('input');
                     document.getElementById('detailsModal').classList.remove('hidden');
                 } catch (err) {
-                    alert('Erreur lors du chargement des détails');
+                    alert('Erreur réseau');
                 } finally {
-                    btn.textContent = originalText;
-                    btn.disabled = false;
+                    btn.textContent = 'Détails';
                 }
             }
         </script>
