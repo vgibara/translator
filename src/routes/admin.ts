@@ -131,7 +131,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
             <div class="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                 <div class="text-red-500 text-5xl mb-4">🚫</div>
                 <h1 class="text-2xl font-bold mb-2">Accès Refusé</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">Vous n\'êtes pas autorisé à accéder à ce panel.</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Vous n'êtes pas autorisé à accéder à ce panel.</p>
                 <a href="/" class="text-blue-500 hover:underline">Retour</a>
             </div>
         `));
@@ -460,7 +460,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     
                     document.querySelector('#content-input pre').textContent = JSON.stringify(data.inputJson, null, 2);
                     document.querySelector('#content-output pre').textContent = data.outputJson ? JSON.stringify(data.outputJson, null, 2) : "Aucun résultat disponible";
-                    document.querySelector('#content-meta pre').textContent = JSON.stringify({ 
+                    document.querySelector('#content-meta pre').textContent = JSON.stringify({
                         metadata: data.metadata, 
                         error: data.error,
                         bullJobId: data.bullJobId 
@@ -475,7 +475,10 @@ export async function adminRoutes(fastify: FastifyInstance) {
                             const date = new Date(log.createdAt).toLocaleString();
                             const isSuccess = log.status >= 200 && log.status < 300;
                             logsDiv.innerHTML += `
-                                <div class="p-3 rounded-lg border ${isSuccess ? 'border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800'}">
+                                <div class="p-3 rounded-lg border 
+                                    
+                                    ${isSuccess ? 'border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800'}
+                                ">
                                     <div class="flex justify-between font-bold text-xs mb-1">
                                         <span class="${isSuccess ? 'text-green-600' : 'text-red-600'}">Status: ${log.status}</span>
                                         <span class="text-gray-400">${date}</span>
