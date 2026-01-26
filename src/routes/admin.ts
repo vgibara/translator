@@ -395,29 +395,94 @@ export async function adminRoutes(fastify: FastifyInstance) {
                   </table>
               </div>
           </div>
-                                      <!-- Modal Details -->
-                                    <div id="detailsModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                                        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-gray-200 dark:border-gray-700">
-                                            <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                                                <h3 class="text-xl font-bold">Détails du Job</h3>
-                                                <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-                                            </div>
-                                            <div class="p-6">
-                                                <pre id="detailsContent" class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-auto max-h-[60vh] text-xs font-mono"></pre>
-                                            </div>
-                                            <div class="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
-                                                <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 px-6 py-2 rounded-xl font-bold">Fermer</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                            
-                                    <script>
-                                        function showDetails(jsonString) {
-                                            const data = JSON.parse(jsonString);
-                                            document.getElementById('detailsContent').textContent = JSON.stringify(data, null, 2);
-                                            document.getElementById('detailsModal').classList.remove('hidden');
-                                        }
-                                    </script>
+        <!-- Modal Details -->
+        <div id="detailsModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
+                <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
+                    <h3 class="text-xl font-bold">Détails de la Traduction</h3>
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 dark:hover:text-white text-3xl">&times;</button>
+                </div>
+                
+                <!-- Tabs Header -->
+                <div class="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-900/30">
+                    <button onclick="switchTab('input')" id="tab-input" class="px-6 py-3 text-sm font-bold border-b-2 border-blue-500 text-blue-600">📥 Source</button>
+                    <button onclick="switchTab('output')" id="tab-output" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📤 Résultat</button>
+                    <button onclick="switchTab('logs')" id="tab-logs" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">📜 Logs Callback</button>
+                    <button onclick="switchTab('meta')" id="tab-meta" class="px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">ℹ️ Meta</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="p-6 overflow-auto flex-grow bg-white dark:bg-gray-800">
+                    <div id="content-input" class="tab-content">
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono"></pre>
+                    </div>
+                    <div id="content-output" class="tab-content hidden">
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono"></pre>
+                    </div>
+                    <div id="content-logs" class="tab-content hidden">
+                        <div class="space-y-3"></div>
+                    </div>
+                    <div id="content-meta" class="tab-content hidden">
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono"></pre>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-end">
+                    <button onclick="document.getElementById('detailsModal').classList.add('hidden')" class="bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 px-8 py-2 rounded-xl font-bold transition-transform hover:scale-105">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let currentData = null;
+
+            function switchTab(tab) {
+                // Reset tabs
+                ['input', 'output', 'logs', 'meta'].forEach(t => {
+                    document.getElementById('tab-' + t).classList.remove('border-blue-500', 'text-blue-600');
+                    document.getElementById('tab-' + t).classList.add('border-transparent', 'text-gray-500');
+                    document.getElementById('content-' + t).classList.add('hidden');
+                });
+
+                // Set active
+                document.getElementById('tab-' + tab).classList.add('border-blue-500', 'text-blue-600');
+                document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-gray-500');
+                document.getElementById('content-' + tab).classList.remove('hidden');
+            }
+
+            function showDetails(jsonString) {
+                currentData = JSON.parse(jsonString);
+                
+                // Set contents
+                document.querySelector('#content-input pre').textContent = JSON.stringify(currentData.input, null, 2);
+                document.querySelector('#content-output pre').textContent = currentData.output ? JSON.stringify(currentData.output, null, 2) : "Aucun résultat disponible";
+                document.querySelector('#content-meta pre').textContent = JSON.stringify({ metadata: currentData.metadata, error: currentData.error }, null, 2);
+                
+                // Build logs
+                const logsDiv = document.querySelector('#content-logs div');
+                logsDiv.innerHTML = '';
+                if (!currentData.callbackLogs || currentData.callbackLogs.length === 0) {
+                    logsDiv.innerHTML = '<p class="text-gray-500 italic text-center py-8">Aucune tentative de rappel enregistrée.</p>';
+                } else {
+                    currentData.callbackLogs.forEach(log => {
+                        const date = new Date(log.createdAt).toLocaleString();
+                        const isSuccess = log.status >= 200 && log.status < 300;
+                        logsDiv.innerHTML += \`
+                            <div class="p-3 rounded-lg border \${isSuccess ? 'border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800'}">
+                                <div class="flex justify-between font-bold text-xs mb-1">
+                                    <span class="\${isSuccess ? 'text-green-600' : 'text-red-600'}">Status: \${log.status}</span>
+                                    <span class="text-gray-400">\${date}</span>
+                                </div>
+                                <div class="text-[10px] font-mono break-all opacity-75">\${log.error || log.response || 'No response body'}</div>
+                            </div>
+                        \`;
+                    });
+                }
+
+                switchTab('input');
+                document.getElementById('detailsModal').classList.remove('hidden');
+            }
+        </script>
                                 `;
                                 reply.type('text/html').send(layout(content, request.session.userEmail));
                               });
