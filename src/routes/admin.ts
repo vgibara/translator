@@ -58,7 +58,7 @@ const layout = (content: string, userEmail?: string) => `
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-200">
 
-    <!-- Navbar -->
+    <!--Navbar -->
     <nav class="bg-gray-800 dark:bg-gray-950 text-white sticky top-0 z-50 shadow-lg">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-6">
@@ -131,7 +131,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
             <div class="max-w-md mx-auto bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
                 <div class="text-red-500 text-5xl mb-4">🚫</div>
                 <h1 class="text-2xl font-bold mb-2">Accès Refusé</h1>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">Vous n'êtes pas autorisé à accéder à ce panel.</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">Vous n\'êtes pas autorisé à accéder à ce panel.</p>
                 <a href="/" class="text-blue-500 hover:underline">Retour</a>
             </div>
         `));
@@ -161,6 +161,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
         </div>
       `));
     }
+  });
+
+  // API: Get Job Details
+  fastify.get('/admin/jobs/:id/data', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const job = await prisma.translationJob.findUnique({
+      where: { id },
+      include: { callbackLogs: { orderBy: { createdAt: 'desc' } } }
+    });
+    return job;
   });
 
   // Dashboard Page
@@ -323,78 +333,71 @@ export async function adminRoutes(fastify: FastifyInstance) {
     reply.redirect('/admin');
   });
 
-    // Archives Page
-    fastify.get('/admin/jobs', async (request, reply) => {
-      const jobs = await prisma.translationJob.findMany({
-        take: 50,
-        orderBy: { createdAt: 'desc' },
-        include: { 
-          user: { select: { email: true, name: true } },
-          callbackLogs: { orderBy: { createdAt: 'desc' } }
-        }
-      });
-  
-      const content = `
-          <div class="flex justify-between items-center mb-8">
-              <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Archives des Traductions</h1>
-              <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-lg text-sm transition-all hover:shadow-sm">← Retour</a>
-          </div>
-  
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-              <div class="overflow-x-auto text-xs md:text-sm">
-                  <table class="w-full">
-                      <thead class="bg-gray-50 dark:bg-gray-900/50">
-                          <tr>
-                              <th class="px-6 py-4 text-left font-semibold">Date</th>
-                              <th class="px-6 py-4 text-left font-semibold">Source Key</th>
-                              <th class="px-6 py-4 text-center font-semibold">Traductions</th>
-                              <th class="px-6 py-4 text-center font-semibold">Statut</th>
-                              <th class="px-6 py-4 text-right font-semibold">Action</th>
-                          </tr>
-                      </thead>
-                      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                          ${jobs.map(j => `
-                              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                  <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
-                                      ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                  </td>
-                                  <td class="px-6 py-4">
-                                      <div class="font-bold">${j.user.name || 'N/A'}</div>
-                                      <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
-                                  </td>
-                                  <td class="px-6 py-4 text-center">
-                                      <div class="flex items-center justify-center gap-2">
-                                          <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
-                                          <span class="text-gray-400">→</span>
-                                          <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
-                                      </div>
-                                  </td>
-                                  <td class="px-6 py-4 text-center">
-                                      <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                          j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
-                                          j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
-                                          'bg-yellow-100 text-yellow-600'
-                                      }">
-                                          ${j.status}
-                                      </span>
-                                  </td>
-                                  <td class="px-6 py-4 text-right">
-                                      <button 
-                                          onclick='showDetails(${JSON.stringify(JSON.stringify({ 
-                                              metadata: j.metadata, 
-                                              error: j.error,
-                                              input: j.inputJson,
-                                              output: j.outputJson,
-                                              callbackLogs: j.callbackLogs
-                                          }, null, 2))})' 
-                                          class="text-blue-500 hover:text-blue-700 font-bold px-2">Détails</button>
-                                  </td>
-                              </tr>
-                          `).join('')}
-                      </tbody>
-                  </table>
-              </div>
-          </div>
+  // Archives Page
+  fastify.get('/admin/jobs', async (request, reply) => {
+    const jobs = await prisma.translationJob.findMany({
+      take: 50,
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { email: true, name: true } } }
+    });
+
+    const content = `
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Archives des Traductions</h1>
+            <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-lg text-sm transition-all hover:shadow-sm">← Retour</a>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div class="overflow-x-auto text-xs md:text-sm">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                            <th class="px-6 py-4 text-left font-semibold">Date</th>
+                            <th class="px-6 py-4 text-left font-semibold">Source Key</th>
+                            <th class="px-6 py-4 text-center font-semibold">Traductions</th>
+                            <th class="px-6 py-4 text-center font-semibold">Statut</th>
+                            <th class="px-6 py-4 text-right font-semibold">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        ${jobs.map(j => `
+                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
+                                    ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="font-bold">${j.user.name || 'N/A'}</div>
+                                    <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
+                                        <span class="text-gray-400">→</span>
+                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${ 
+                                        j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
+                                        j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
+                                        'bg-yellow-100 text-yellow-600'
+                                    }">
+                                        ${j.status}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <button 
+                                        onclick="loadJobDetails('${j.id}')" 
+                                        id="btn-${j.id}"
+                                        class="text-blue-500 hover:text-blue-700 font-bold px-2 transition-all">Détails</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- Modal Details -->
         <div id="detailsModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]">
@@ -414,16 +417,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 <!-- Tab Contents -->
                 <div class="p-6 overflow-auto flex-grow bg-white dark:bg-gray-800">
                     <div id="content-input" class="tab-content">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono"></pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap"></pre>
                     </div>
                     <div id="content-output" class="tab-content hidden">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono"></pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap"></pre>
                     </div>
                     <div id="content-logs" class="tab-content hidden">
                         <div class="space-y-3"></div>
                     </div>
                     <div id="content-meta" class="tab-content hidden">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono"></pre>
+                        <pre class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-xs font-mono whitespace-pre-wrap"></pre>
                     </div>
                 </div>
 
@@ -434,57 +437,66 @@ export async function adminRoutes(fastify: FastifyInstance) {
         </div>
 
         <script>
-            let currentData = null;
-
             function switchTab(tab) {
-                // Reset tabs
                 ['input', 'output', 'logs', 'meta'].forEach(t => {
                     document.getElementById('tab-' + t).classList.remove('border-blue-500', 'text-blue-600');
                     document.getElementById('tab-' + t).classList.add('border-transparent', 'text-gray-500');
                     document.getElementById('content-' + t).classList.add('hidden');
                 });
-
-                // Set active
                 document.getElementById('tab-' + tab).classList.add('border-blue-500', 'text-blue-600');
                 document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-gray-500');
                 document.getElementById('content-' + tab).classList.remove('hidden');
             }
 
-            function showDetails(jsonString) {
-                currentData = JSON.parse(jsonString);
-                
-                // Set contents
-                document.querySelector('#content-input pre').textContent = JSON.stringify(currentData.input, null, 2);
-                document.querySelector('#content-output pre').textContent = currentData.output ? JSON.stringify(currentData.output, null, 2) : "Aucun résultat disponible";
-                document.querySelector('#content-meta pre').textContent = JSON.stringify({ metadata: currentData.metadata, error: currentData.error }, null, 2);
-                
-                // Build logs
-                const logsDiv = document.querySelector('#content-logs div');
-                logsDiv.innerHTML = '';
-                if (!currentData.callbackLogs || currentData.callbackLogs.length === 0) {
-                    logsDiv.innerHTML = '<p class="text-gray-500 italic text-center py-8">Aucune tentative de rappel enregistrée.</p>';
-                } else {
-                    currentData.callbackLogs.forEach(log => {
-                        const date = new Date(log.createdAt).toLocaleString();
-                        const isSuccess = log.status >= 200 && log.status < 300;
-                        logsDiv.innerHTML += \`
-                            <div class="p-3 rounded-lg border \${isSuccess ? 'border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800'}">
-                                <div class="flex justify-between font-bold text-xs mb-1">
-                                    <span class="\${isSuccess ? 'text-green-600' : 'text-red-600'}">Status: \${log.status}</span>
-                                    <span class="text-gray-400">\${date}</span>
-                                </div>
-                                <div class="text-[10px] font-mono break-all opacity-75">\${log.error || log.response || 'No response body'}</div>
-                            </div>
-                        \`;
-                    });
-                }
+            async function loadJobDetails(id) {
+                const btn = document.getElementById('btn-' + id);
+                const originalText = btn.textContent;
+                btn.textContent = '...';
+                btn.disabled = true;
 
-                switchTab('input');
-                document.getElementById('detailsModal').classList.remove('hidden');
+                try {
+                    const response = await fetch(`/admin/jobs/${id}/data`);
+                    const data = await response.json();
+                    
+                    document.querySelector('#content-input pre').textContent = JSON.stringify(data.inputJson, null, 2);
+                    document.querySelector('#content-output pre').textContent = data.outputJson ? JSON.stringify(data.outputJson, null, 2) : "Aucun résultat disponible";
+                    document.querySelector('#content-meta pre').textContent = JSON.stringify({ 
+                        metadata: data.metadata, 
+                        error: data.error,
+                        bullJobId: data.bullJobId 
+                    }, null, 2);
+                    
+                    const logsDiv = document.querySelector('#content-logs div');
+                    logsDiv.innerHTML = '';
+                    if (!data.callbackLogs || data.callbackLogs.length === 0) {
+                        logsDiv.innerHTML = '<p class="text-gray-500 italic text-center py-8">Aucune tentative de rappel enregistrée.</p>';
+                    } else {
+                        data.callbackLogs.forEach(log => {
+                            const date = new Date(log.createdAt).toLocaleString();
+                            const isSuccess = log.status >= 200 && log.status < 300;
+                            logsDiv.innerHTML += `
+                                <div class="p-3 rounded-lg border ${isSuccess ? 'border-green-100 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800'}">
+                                    <div class="flex justify-between font-bold text-xs mb-1">
+                                        <span class="${isSuccess ? 'text-green-600' : 'text-red-600'}">Status: ${log.status}</span>
+                                        <span class="text-gray-400">${date}</span>
+                                    </div>
+                                    <div class="text-[10px] font-mono break-all opacity-75">${log.error || log.response || 'No response body'}</div>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    switchTab('input');
+                    document.getElementById('detailsModal').classList.remove('hidden');
+                } catch (err) {
+                    alert('Erreur lors du chargement des détails');
+                } finally {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
             }
         </script>
-                                `;
-                                reply.type('text/html').send(layout(content, request.session.userEmail));
-                              });
-                            }
-                            
+    `;
+    reply.type('text/html').send(layout(content, request.session.userEmail));
+  });
+}
