@@ -26,19 +26,57 @@ model AdminUser {
 }
 
 model TranslationJob {
+
   id            String   @id @default(uuid())
+
   bullJobId     String?  @unique
+
   status        String   // PENDING, COMPLETED, FAILED
+
   sourceLang    String?
+
   targetLang    String
+
   callbackUrl   String
+
   inputJson     Json
+
   outputJson    Json?
+
   error         String?
+
   metadata      Json?
+
   createdAt     DateTime @default(now())
+
   updatedAt     DateTime @updatedAt
+
   
+
   userId        String
+
   user          User     @relation(fields: [userId], references: [id])
+
+  callbackLogs  CallbackLog[]
+
+}
+
+
+
+model CallbackLog {
+
+  id          String   @id @default(uuid())
+
+  jobId       String
+
+  job         TranslationJob @relation(fields: [jobId], references: [id])
+
+  status      Int      // HTTP Status Code
+
+  response    String?  // Response body
+
+  error       String?
+
+  createdAt   DateTime @default(now())
+
 }

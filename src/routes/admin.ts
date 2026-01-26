@@ -323,71 +323,79 @@ export async function adminRoutes(fastify: FastifyInstance) {
     reply.redirect('/admin');
   });
 
-  // Archives Page
-  fastify.get('/admin/jobs', async (request, reply) => {
-    const jobs = await prisma.translationJob.findMany({
-      take: 50,
-      orderBy: { createdAt: 'desc' },
-      include: { user: { select: { email: true, name: true } } }
-    });
-
-    const content = `
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Archives des Traductions</h1>
-            <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-lg text-sm transition-all hover:shadow-sm">← Retour</a>
-        </div>
-
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div class="overflow-x-auto text-xs md:text-sm">
-                <table class="w-full">
-                    <thead class="bg-gray-50 dark:bg-gray-900/50">
-                        <tr>
-                            <th class="px-6 py-4 text-left font-semibold">Date</th>
-                            <th class="px-6 py-4 text-left font-semibold">Source Key</th>
-                            <th class="px-6 py-4 text-center font-semibold">Traductions</th>
-                            <th class="px-6 py-4 text-center font-semibold">Statut</th>
-                            <th class="px-6 py-4 text-right font-semibold">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        ${jobs.map(j => `
-                                                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                                                            <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
-                                                                ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                                            </td>
-                                                            <td class="px-6 py-4">
-                                                                <div class="font-bold">${j.user.name || 'N/A'}</div>
-                                                                <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
-                                                            </td>
-                                                            <td class="px-6 py-4 text-center">
-                                                                <div class="flex items-center justify-center gap-2">
-                                                                    <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
-                                                                    <span class="text-gray-400">→</span>
-                                                                    <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td class="px-6 py-4 text-center">
-                                                                <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                                    j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
-                                                                    j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
-                                                                    'bg-yellow-100 text-yellow-600'
-                                                                }">
-                                                                    ${j.status}
-                                                                </span>
-                                                            </td>
-                                                            <td class="px-6 py-4 text-right">
-                                                                <button 
-                                                                    onclick='showDetails(${JSON.stringify(JSON.stringify({ metadata: j.metadata, error: j.error }, null, 2))})' 
-                                                                    class="text-blue-500 hover:text-blue-700 font-bold px-2">Détails</button>
-                                                            </td>
-                                                        </tr>
-                                                    `).join('')}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                            
-                                    <!-- Modal Details -->
+    // Archives Page
+    fastify.get('/admin/jobs', async (request, reply) => {
+      const jobs = await prisma.translationJob.findMany({
+        take: 50,
+        orderBy: { createdAt: 'desc' },
+        include: { 
+          user: { select: { email: true, name: true } },
+          callbackLogs: { orderBy: { createdAt: 'desc' } }
+        }
+      });
+  
+      const content = `
+          <div class="flex justify-between items-center mb-8">
+              <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Archives des Traductions</h1>
+              <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-2 rounded-lg text-sm transition-all hover:shadow-sm">← Retour</a>
+          </div>
+  
+          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <div class="overflow-x-auto text-xs md:text-sm">
+                  <table class="w-full">
+                      <thead class="bg-gray-50 dark:bg-gray-900/50">
+                          <tr>
+                              <th class="px-6 py-4 text-left font-semibold">Date</th>
+                              <th class="px-6 py-4 text-left font-semibold">Source Key</th>
+                              <th class="px-6 py-4 text-center font-semibold">Traductions</th>
+                              <th class="px-6 py-4 text-center font-semibold">Statut</th>
+                              <th class="px-6 py-4 text-right font-semibold">Action</th>
+                          </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                          ${jobs.map(j => `
+                              <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                                  <td class="px-6 py-4 whitespace-nowrap text-gray-500 font-mono">
+                                      ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                  </td>
+                                  <td class="px-6 py-4">
+                                      <div class="font-bold">${j.user.name || 'N/A'}</div>
+                                      <div class="text-[10px] text-gray-400 font-mono">${j.callbackUrl}</div>
+                                  </td>
+                                  <td class="px-6 py-4 text-center">
+                                      <div class="flex items-center justify-center gap-2">
+                                          <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded border border-gray-200 dark:border-gray-700 uppercase font-bold text-[10px]">${j.sourceLang || '??'}</span>
+                                          <span class="text-gray-400">→</span>
+                                          <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded border border-blue-200 dark:border-blue-800 uppercase font-bold text-[10px]">${j.targetLang}</span>
+                                      </div>
+                                  </td>
+                                  <td class="px-6 py-4 text-center">
+                                      <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                          j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
+                                          j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
+                                          'bg-yellow-100 text-yellow-600'
+                                      }">
+                                          ${j.status}
+                                      </span>
+                                  </td>
+                                  <td class="px-6 py-4 text-right">
+                                      <button 
+                                          onclick='showDetails(${JSON.stringify(JSON.stringify({ 
+                                              metadata: j.metadata, 
+                                              error: j.error,
+                                              input: j.inputJson,
+                                              output: j.outputJson,
+                                              callbackLogs: j.callbackLogs
+                                          }, null, 2))})' 
+                                          class="text-blue-500 hover:text-blue-700 font-bold px-2">Détails</button>
+                                  </td>
+                              </tr>
+                          `).join('')}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+                                      <!-- Modal Details -->
                                     <div id="detailsModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                                         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-gray-200 dark:border-gray-700">
                                             <div class="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
