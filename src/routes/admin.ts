@@ -303,16 +303,15 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // Archives Page
   fastify.get('/admin/jobs', async (request, reply) => {
     const jobs = await prisma.translationJob.findMany({
-      take: 50,
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { email: true, name: true } } }
     });
 
-    const content = `
+    const content = \`
         <div class="flex justify-between items-center mb-10">
             <div>
                 <h1 class="text-3xl font-black tracking-tighter uppercase">Archives</h1>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Historique des 50 dernières traductions</p>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Historique complet des traductions (\${jobs.length})</p>
             </div>
             <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all">← Retour</a>
         </div>
@@ -323,46 +322,50 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     <thead class="bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
                         <tr>
                             <th class="px-6 py-4 text-left">Date / Heure</th>
-                            <th class="px-6 py-4 text-left">Source Key</th>
+                            <th class="px-6 py-4 text-left">Titre / Source</th>
                             <th class="px-6 py-4 text-center">Langues</th>
                             <th class="px-6 py-4 text-center">Statut</th>
                             <th class="px-6 py-4 text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        ${jobs.map(j => `
+                        \${jobs.map(j => {
+                            const input = j.inputJson as any;
+                            const title = input?.title || input?.name || input?.header || 'Sans titre';
+                            return \`
                             <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
-                                    ${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                    \${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="font-bold text-xs">${j.user.name || 'N/A'}</div>
-                                    <div class="text-[9px] text-gray-400 font-mono mt-0.5 truncate max-w-[200px]">${j.callbackUrl}</div>
+                                    <div class="font-bold text-xs">\${title}</div>
+                                    <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">\${j.user.name || 'N/A'}</div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
-                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
+                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">\${j.sourceLang || '??'}</span>
                                         <span class="text-gray-300">→</span>
-                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
+                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">\${j.targetLang}</span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
-                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${ 
+                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest \${ 
                                         j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
                                         j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
                                         'bg-yellow-100 text-yellow-600'
                                     }">
-                                        ${j.status}
+                                        \${j.status}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <button 
-                                        onclick="loadJobDetails('${j.id}')" 
-                                        id="btn-${j.id}"
+                                        onclick="loadJobDetails('\${j.id}')" 
+                                        id="btn-\${j.id}"
                                         class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
                                 </td>
                             </tr>
-                        `).join('')}
+                            \`;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -379,8 +382,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 <div class="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-950/50">
                     <button onclick="switchTab('input')" id="tab-input" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-blue-500 text-blue-600">📥 Source</button>
                     <button onclick="switchTab('output')" id="tab-output" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">📤 Résultat</button>
-                    <button onclick="switchTab('logs')" id="tab-logs" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">📜 Callbacks</button>
-                    <button onclick="switchTab('meta')" id="tab-meta" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">ℹ️ Meta</button>
+                    <button onclick="switchTab('logs')" id="tab-logs" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-transparent text-gray-400">📜 Callbacks & Meta</button>
                 </div>
 
                 <div class="p-8 overflow-auto flex-grow bg-white dark:bg-gray-800">
@@ -390,9 +392,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     <div id="content-output" class="tab-content hidden">
                         <pre class="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl text-[11px] font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800"></pre>
                     </div>
-                    <div id="content-logs" class="tab-content hidden space-y-4"></div>
-                    <div id="content-meta" class="tab-content hidden">
-                        <pre class="bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl text-[11px] font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800"></pre>
+                    <div id="content-logs" class="tab-content hidden space-y-4">
+                        <div id="callback-url-display" class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-mono break-all border border-blue-100 dark:border-blue-800 mb-4"></div>
+                        <div id="logs-list" class="space-y-4"></div>
                     </div>
                 </div>
 
@@ -404,7 +406,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
         <script>
             function switchTab(tab) {
-                ['input', 'output', 'logs', 'meta'].forEach(t => {
+                ['input', 'output', 'logs'].forEach(t => {
                     const btn = document.getElementById('tab-' + t);
                     const content = document.getElementById('content-' + t);
                     btn.classList.remove('border-blue-500', 'text-blue-600');
@@ -419,6 +421,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
             async function loadJobDetails(id) {
                 const btn = document.getElementById('btn-' + id);
+                const originalText = btn.textContent;
                 btn.textContent = '...';
                 
                 try {
@@ -427,12 +430,24 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     
                     document.querySelector('#content-input pre').textContent = JSON.stringify(data.inputJson, null, 2);
                     document.querySelector('#content-output pre').textContent = data.outputJson ? JSON.stringify(data.outputJson, null, 2) : "En attente de traduction...";
-                    document.querySelector('#content-meta pre').textContent = JSON.stringify({ metadata: data.metadata, error: data.error, bullId: data.bullJobId }, null, 2);
                     
-                    const logsDiv = document.getElementById('content-logs');
+                    document.getElementById('callback-url-display').textContent = 'Callback URL: ' + data.callbackUrl;
+                    
+                    const logsDiv = document.getElementById('logs-list');
                     logsDiv.innerHTML = '';
+                    
+                    // Add Meta as first log entry
+                    const metaEl = document.createElement('div');
+                    metaEl.className = 'p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/20';
+                    metaEl.innerHTML = '<div class="text-[10px] font-black uppercase mb-2 text-gray-400 tracking-widest">Metadata & Errors</div>' +
+                                      '<pre class="text-[10px] font-mono opacity-70">' + JSON.stringify({ metadata: data.metadata, error: data.error }, null, 2) + '</pre>';
+                    logsDiv.appendChild(metaEl);
+
                     if (!data.callbackLogs || data.callbackLogs.length === 0) {
-                        logsDiv.innerHTML = '<p class="text-center py-10 text-xs font-bold text-gray-400 uppercase tracking-widest">Aucun log de callback</p>';
+                        const empty = document.createElement('p');
+                        empty.className = 'text-center py-6 text-xs font-bold text-gray-400 uppercase tracking-widest';
+                        empty.textContent = 'Aucun log de callback';
+                        logsDiv.appendChild(empty);
                     } else {
                         data.callbackLogs.forEach(log => {
                             const date = new Date(log.createdAt).toLocaleString();
@@ -450,10 +465,14 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 } catch (err) {
                     alert('Erreur réseau');
                 } finally {
-                    btn.textContent = 'Détails';
+                    btn.textContent = originalText;
                 }
             }
         </script>
+    \`;
+    reply.type('text/html').send(layout(content, request.session.userEmail));
+  });
+}
     `;
     reply.type('text/html').send(layout(content, request.session.userEmail));
   });
