@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../utils/prisma.js';
 import { env } from '../config/env.js';
 import { authService } from '../services/auth.service.js';
+import { DateTime } from 'luxon';
 
 declare module 'fastify' {
   interface Session {
@@ -10,6 +11,7 @@ declare module 'fastify' {
 }
 
 const SUPER_ADMIN = 'vgibara@gmail.com';
+const TIMEZONE = 'America/Toronto';
 
 /**
  * Layout wrapper with Tailwind and Theme toggle logic
@@ -145,10 +147,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
   // API: Get Job Details
   fastify.get('/admin/jobs/:id/data', async (request, reply) => {
     const { id } = request.params as { id: string };
-    return await prisma.translationJob.findUnique({
+    const job = await prisma.translationJob.findUnique({
       where: { id },
       include: { callbackLogs: { orderBy: { createdAt: 'desc' } } }
     });
+    return job;
   });
 
   // Main Admin Page
@@ -206,7 +209,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                                         <td class="px-6 py-4"><div class="font-bold">${u.name || 'Sans nom'}</div><div class="text-[10px] text-gray-400 font-medium italic">${u.email || ''}</div></td>
                                         <td class="px-6 py-4 font-mono text-blue-500 dark:text-blue-400 text-xs">${u.apiKey}</td>
                                         <td class="px-6 py-4 text-center"><span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-[10px] font-black">${u._count.jobs}</span></td>
-                                        <td class="px-6 py-4 text-right text-gray-400 text-[10px] font-bold uppercase">${u.createdAt.toLocaleDateString()}</td>
+                                        <td class="px-6 py-4 text-right text-gray-400 text-[10px] font-bold uppercase">${DateTime.fromJSDate(u.createdAt).setZone(TIMEZONE).toFormat('yyyy-MM-dd')}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -300,20 +303,86 @@ export async function adminRoutes(fastify: FastifyInstance) {
     reply.redirect('/admin');
   });
 
-  // Archives Page
+  // Archives Page with Filters
   fastify.get('/admin/jobs', async (request, reply) => {
+    const query = request.query as any;
+    
+    // Filters building
+    const where: any = {};
+    if (query.status) where.status = query.status;
+    if (query.sourceLang) where.sourceLang = query.sourceLang;
+    if (query.targetLang) where.targetLang = query.targetLang;
+    
+    if (query.dateStart || query.dateEnd) {
+      where.createdAt = {};
+      if (query.dateStart) {
+        where.createdAt.gte = DateTime.fromISO(query.dateStart, { zone: TIMEZONE }).toJSDate();
+      }
+      if (query.dateEnd) {
+        // Set to end of day
+        where.createdAt.lte = DateTime.fromISO(query.dateEnd, { zone: TIMEZONE }).endOf('day').toJSDate();
+      }
+    }
+
     const jobs = await prisma.translationJob.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       include: { user: { select: { email: true, name: true } } }
     });
 
-    const content = \`
-        <div class="flex justify-between items-center mb-10">
+    // Get unique langs for filter dropdowns
+    const [sourceLangs, targetLangs] = await Promise.all([
+      prisma.translationJob.findMany({ select: { sourceLang: true }, distinct: ['sourceLang'] }),
+      prisma.translationJob.findMany({ select: { targetLang: true }, distinct: ['targetLang'] })
+    ]);
+
+    const content = `
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-black tracking-tighter uppercase">Archives</h1>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Historique complet des traductions (\${jobs.length})</p>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Historique complet (${jobs.length} résultats)</p>
             </div>
             <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all">← Retour</a>
+        </div>
+
+        <!-- Filters Bar -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+            <form method="GET" action="/admin/jobs" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Début</label>
+                    <input type="date" name="dateStart" value="${query.dateStart || ''}" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Fin</label>
+                    <input type="date" name="dateEnd" value="${query.dateEnd || ''}" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Source</label>
+                    <select name="sourceLang" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                        <option value="">Toutes</option>
+                        ${sourceLangs.map(l => `<option value="${l.sourceLang || ''}" ${query.sourceLang === l.sourceLang ? 'selected' : ''}>${l.sourceLang || 'N/A'}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cible</label>
+                    <select name="targetLang" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                        <option value="">Toutes</option>
+                        ${targetLangs.map(l => `<option value="${l.targetLang}" ${query.targetLang === l.targetLang ? 'selected' : ''}>${l.targetLang}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Statut</label>
+                    <div class="flex gap-2 mt-1">
+                        <select name="status" class="flex-grow bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                            <option value="">Tous</option>
+                            <option value="COMPLETED" ${query.status === 'COMPLETED' ? 'selected' : ''}>Succès</option>
+                            <option value="FAILED" ${query.status === 'FAILED' ? 'selected' : ''}>Échec</option>
+                            <option value="PENDING" ${query.status === 'PENDING' ? 'selected' : ''}>En attente</option>
+                        </select>
+                        <button type="submit" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-xl text-xs font-black uppercase">Filtrer</button>
+                    </div>
+                </div>
+            </form>
         </div>
 
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
@@ -321,7 +390,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50/50 dark:bg-gray-950/50 text-[10px] uppercase font-black text-gray-400 tracking-widest">
                         <tr>
-                            <th class="px-6 py-4 text-left">Date / Heure</th>
+                            <th class="px-6 py-4 text-left">Date / Heure (Toronto)</th>
                             <th class="px-6 py-4 text-left">Titre / Source</th>
                             <th class="px-6 py-4 text-center">Langues</th>
                             <th class="px-6 py-4 text-center">Statut</th>
@@ -329,42 +398,42 @@ export async function adminRoutes(fastify: FastifyInstance) {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        \${jobs.map(j => {
+                        ${jobs.map(j => {
                             const input = j.inputJson as any;
                             const title = input?.title || input?.name || input?.header || 'Sans titre';
-                            return \`
+                            return `
                             <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                                 <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
-                                    \${j.createdAt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                    ${DateTime.fromJSDate(j.createdAt).setZone(TIMEZONE).toFormat('dd/MM HH:mm:ss')}
                                 </td>
                                 <td class="px-6 py-4">
-                                    <div class="font-bold text-xs">\${title}</div>
-                                    <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">\${j.user.name || 'N/A'}</div>
+                                    <div class="font-bold text-xs">${title}</div>
+                                    <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">${j.user.name || 'N/A'}</div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <div class="flex items-center justify-center gap-2">
-                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">\${j.sourceLang || '??'}</span>
+                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
                                         <span class="text-gray-300">→</span>
-                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">\${j.targetLang}</span>
+                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-center">
-                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest \${ 
+                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${ 
                                         j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
                                         j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
                                         'bg-yellow-100 text-yellow-600'
                                     }">
-                                        \${j.status}
+                                        ${j.status}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-right">
                                     <button 
-                                        onclick="loadJobDetails('\${j.id}')" 
-                                        id="btn-\${j.id}"
+                                        onclick="loadJobDetails('${j.id}')" 
+                                        id="btn-${j.id}"
                                         class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
                                 </td>
                             </tr>
-                            \`;
+                            `;
                         }).join('')}
                     </tbody>
                 </table>
@@ -436,10 +505,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     const logsDiv = document.getElementById('logs-list');
                     logsDiv.innerHTML = '';
                     
-                    // Add Meta as first log entry
                     const metaEl = document.createElement('div');
                     metaEl.className = 'p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-950/20';
-                    metaEl.innerHTML = '<div class="text-[10px] font-black uppercase mb-2 text-gray-400 tracking-widest">Metadata & Errors</div>' +
+                    metaEl.innerHTML = '<div class="text-[10px] font-black uppercase mb-2 text-gray-400 tracking-widest">Metadata & Errors</div>' + 
                                       '<pre class="text-[10px] font-mono opacity-70">' + JSON.stringify({ metadata: data.metadata, error: data.error }, null, 2) + '</pre>';
                     logsDiv.appendChild(metaEl);
 
@@ -450,7 +518,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                         logsDiv.appendChild(empty);
                     } else {
                         data.callbackLogs.forEach(log => {
-                            const date = new Date(log.createdAt).toLocaleString();
+                            const date = new Date(log.createdAt).toLocaleString('fr-FR', { timeZone: '${TIMEZONE}' });
                             const isOk = log.status >= 200 && log.status < 300;
                             const logEl = document.createElement('div');
                             logEl.className = 'p-4 rounded-2xl border ' + (isOk ? 'border-green-100 bg-green-50/50 dark:border-green-900/30 dark:bg-green-900/10' : 'border-red-100 bg-red-50/50 dark:border-red-900/30 dark:bg-red-900/10');
@@ -469,10 +537,6 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 }
             }
         </script>
-    \`;
-    reply.type('text/html').send(layout(content, request.session.userEmail));
-  });
-}
     `;
     reply.type('text/html').send(layout(content, request.session.userEmail));
   });
