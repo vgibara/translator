@@ -2,7 +2,7 @@
   "name": "translator",
   "version": "1.0.0",
   "description": "",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
@@ -29,6 +29,7 @@
     "dotenv": "^17.2.3",
     "fastify": "^5.7.1",
     "ioredis": "^5.9.2",
+    "luxon": "^3.7.2",
     "openai": "^6.16.0",
     "pg": "^8.17.2",
     "pino": "^10.3.0",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/luxon": "^3.7.1",
     "@types/node": "^25.0.10",
     "@types/pg": "^8.16.0",
     "nodemon": "^3.1.11",

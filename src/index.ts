@@ -6,12 +6,12 @@ import pino from 'pino';
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { FastifyAdapter } from '@bull-board/fastify';
+import fastifyOauth2 from '@fastify/oauth2';
+import fastifyFormbody from '@fastify/formbody';
 import { translationQueue } from './queue/translation.queue.js';
 import { callbackQueue } from './queue/callback.queue.js';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
-import fastifyOauth2 from '@fastify/oauth2';
-import fastifyFormbody from '@fastify/formbody';
 
 const logger = pino({
   transport: {
@@ -48,7 +48,7 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
         id: env.GOOGLE_CLIENT_ID,
         secret: env.GOOGLE_CLIENT_SECRET
       },
-      auth: fastifyOauth2.GOOGLE_CONFIGURATION
+      auth: (fastifyOauth2 as any).GOOGLE_CONFIGURATION
     },
     startRedirectPath: '/login/google',
     callbackUri: `${env.BASE_URL}/login/google/callback`

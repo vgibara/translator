@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../utils/prisma.js';
 import { env } from '../config/env.js';
 import { authService } from '../services/auth.service.js';
+/// <reference types="luxon" />
 import { DateTime } from 'luxon';
 
 declare module 'fastify' {
@@ -163,7 +164,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     const stats = {
       totalKeys: users.length,
-      totalJobs: users.reduce((acc, u) => acc + u._count.jobs, 0),
+      totalJobs: users.reduce((acc: number, u: any) => acc + u._count.jobs, 0),
       totalAdmins: admins.length + 1
     };
 
@@ -204,7 +205,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                ${users.map(u => `
+                                ${users.map((u: any) => `
                                     <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                                         <td class="px-6 py-4"><div class="font-bold">${u.name || 'Sans nom'}</div><div class="text-[10px] text-gray-400 font-medium italic">${u.email || ''}</div></td>
                                         <td class="px-6 py-4 font-mono text-blue-500 dark:text-blue-400 text-xs">${u.apiKey}</td>
@@ -231,7 +232,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                             <span class="text-xs font-bold">${SUPER_ADMIN}</span>
                             <span class="text-[8px] bg-gray-900 text-white px-2 py-1 rounded uppercase font-black tracking-[0.2em]">Master</span>
                         </div>
-                        ${admins.map(a => `
+                        ${admins.map((a: any) => `
                             <div class="flex justify-between items-center p-4 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-gray-50/30 dark:hover:bg-gray-900/30 transition-all">
                                 <span class="text-xs font-medium">${a.email}</span>
                                 <form method="POST" action="/admin/admins/delete" onsubmit="return confirm('Supprimer cet accès ?')">
@@ -397,45 +398,46 @@ export async function adminRoutes(fastify: FastifyInstance) {
                             <th class="px-6 py-4 text-right">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                        ${jobs.map(j => {
-                            const input = j.inputJson as any;
-                            const title = input?.title || input?.name || input?.header || 'Sans titre';
-                            return `
-                            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
-                                    ${DateTime.fromJSDate(j.createdAt).setZone(TIMEZONE).toFormat('dd/MM HH:mm:ss')}
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="font-bold text-xs">${title}</div>
-                                    <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">${j.user.name || 'N/A'}</div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="flex items-center justify-center gap-2">
-                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
-                                        <span class="text-gray-300">→</span>
-                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${ 
-                                        j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
-                                        j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
-                                        'bg-yellow-100 text-yellow-600'
-                                    }">
-                                        ${j.status}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <button 
-                                        onclick="loadJobDetails('${j.id}')" 
-                                        id="btn-${j.id}"
-                                        class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
-                                </td>
-                            </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
+                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                                            ${jobs.map((j: any) => {
+                                                const input = j.inputJson as any;
+                                                const title = input?.title || input?.name || input?.header || 'Sans titre';
+                                                return `
+                                                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                                                    <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                                                        ${DateTime.fromJSDate(j.createdAt).setZone(TIMEZONE).toFormat('dd/MM HH:mm:ss')}
+                                                    </td>
+                                                    <td class="px-6 py-4">
+                                                        <div class="font-bold text-xs">${title}</div>
+                                                        <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">${j.user.name || 'N/A'}</div>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-center">
+                                                        <div class="flex items-center justify-center gap-2">
+                                                            <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
+                                                            <span class="text-gray-300">→</span>
+                                                            <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-center">
+                                                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                            j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
+                                                            j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
+                                                            'bg-yellow-100 text-yellow-600'
+                                                        }">
+                                                            ${j.status}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-6 py-4 text-right">
+                                                        <button 
+                                                            onclick="loadJobDetails('${j.id}')" 
+                                                            id="btn-${j.id}"
+                                                            class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
+                                                    </td>
+                                                </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                    
                 </table>
             </div>
         </div>
