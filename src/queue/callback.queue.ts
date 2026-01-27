@@ -21,6 +21,8 @@ export interface CallbackJobData {
     status: 'completed' | 'failed';
     data?: any;
     error?: string;
+    sourceLang?: string | null;
+    targetLang: string;
     metadata?: any;
     timestamp: string;
   };

@@ -74,6 +74,8 @@ export const translationWorker = new Worker(
         payload: {
           status: 'completed',
           data: translatedJson,
+          sourceLang,
+          targetLang,
           metadata,
           timestamp: new Date().toISOString(),
         },
@@ -98,6 +100,8 @@ export const translationWorker = new Worker(
         payload: {
           status: 'failed',
           error: error.message,
+          sourceLang,
+          targetLang,
           metadata,
           timestamp: new Date().toISOString(),
         },
