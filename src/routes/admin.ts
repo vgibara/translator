@@ -304,9 +304,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
     reply.redirect('/admin');
   });
 
-  // Archives Page with Filters
+  // Archives Page with Filters & Pagination
   fastify.get('/admin/jobs', async (request, reply) => {
     const query = request.query as any;
+    const page = parseInt(query.page) || 1;
+    const limit = 50;
+    const skip = (page - 1) * limit;
     
     // Filters building
     const where: any = {};
@@ -320,16 +323,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
         where.createdAt.gte = DateTime.fromISO(query.dateStart, { zone: TIMEZONE }).toJSDate();
       }
       if (query.dateEnd) {
-        // Set to end of day
         where.createdAt.lte = DateTime.fromISO(query.dateEnd, { zone: TIMEZONE }).endOf('day').toJSDate();
       }
     }
 
-    const jobs = await prisma.translationJob.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: { user: { select: { email: true, name: true } } }
-    });
+    const [jobs, totalJobsCount] = await Promise.all([
+      prisma.translationJob.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { user: { select: { email: true, name: true } } }
+      }),
+      prisma.translationJob.count({ where })
+    ]);
+
+    const totalPages = Math.ceil(totalJobsCount / limit);
 
     // Get unique langs for filter dropdowns
     const [sourceLangs, targetLangs] = await Promise.all([
@@ -337,11 +346,23 @@ export async function adminRoutes(fastify: FastifyInstance) {
       prisma.translationJob.findMany({ select: { targetLang: true }, distinct: ['targetLang'] })
     ]);
 
+    // Helper to build filter query string for pagination links
+    const getQueryString = (newPage: number) => {
+      const p = new URLSearchParams();
+      if (query.status) p.set('status', query.status);
+      if (query.sourceLang) p.set('sourceLang', query.sourceLang);
+      if (query.targetLang) p.set('targetLang', query.targetLang);
+      if (query.dateStart) p.set('dateStart', query.dateStart);
+      if (query.dateEnd) p.set('dateEnd', query.dateEnd);
+      p.set('page', newPage.toString());
+      return p.toString();
+    };
+
     const content = `
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
                 <h1 class="text-3xl font-black tracking-tighter uppercase">Archives</h1>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Historique complet (${jobs.length} résultats)</p>
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Page ${page} sur ${totalPages || 1} (${totalJobsCount} résultats)</p>
             </div>
             <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all">← Retour</a>
         </div>
@@ -351,22 +372,22 @@ export async function adminRoutes(fastify: FastifyInstance) {
             <form method="GET" action="/admin/jobs" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Début</label>
-                    <input type="date" name="dateStart" value="${query.dateStart || ''}" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="date" name="dateStart" value="${query.dateStart || ''}" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Fin</label>
-                    <input type="date" name="dateEnd" value="${query.dateEnd || ''}" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="date" name="dateEnd" value="${query.dateEnd || ''}" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Source</label>
-                    <select name="sourceLang" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                    <select name="sourceLang" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-600 dark:text-gray-300">
                         <option value="">Toutes</option>
                         ${sourceLangs.map(l => `<option value="${l.sourceLang || ''}" ${query.sourceLang === l.sourceLang ? 'selected' : ''}>${l.sourceLang || 'N/A'}</option>`).join('')}
                     </select>
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cible</label>
-                    <select name="targetLang" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                    <select name="targetLang" class="w-full mt-1 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-600 dark:text-gray-300">
                         <option value="">Toutes</option>
                         ${targetLangs.map(l => `<option value="${l.targetLang}" ${query.targetLang === l.targetLang ? 'selected' : ''}>${l.targetLang}</option>`).join('')}
                     </select>
@@ -374,13 +395,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 <div>
                     <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Statut</label>
                     <div class="flex gap-2 mt-1">
-                        <select name="status" class="flex-grow bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold">
+                        <select name="status" class="flex-grow bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-bold text-gray-600 dark:text-gray-300">
                             <option value="">Tous</option>
                             <option value="COMPLETED" ${query.status === 'COMPLETED' ? 'selected' : ''}>Succès</option>
                             <option value="FAILED" ${query.status === 'FAILED' ? 'selected' : ''}>Échec</option>
                             <option value="PENDING" ${query.status === 'PENDING' ? 'selected' : ''}>En attente</option>
                         </select>
-                        <button type="submit" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-xl text-xs font-black uppercase">Filtrer</button>
+                        <button type="submit" class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-xl text-xs font-black uppercase">Ok</button>
                     </div>
                 </div>
             </form>
@@ -398,49 +419,61 @@ export async function adminRoutes(fastify: FastifyInstance) {
                             <th class="px-6 py-4 text-right">Action</th>
                         </tr>
                     </thead>
-                                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                                            ${jobs.map((j: any) => {
-                                                const input = j.inputJson as any;
-                                                const title = input?.title || input?.name || input?.header || 'Sans titre';
-                                                return `
-                                                <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
-                                                    <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
-                                                        ${DateTime.fromJSDate(j.createdAt).setZone(TIMEZONE).toFormat('dd/MM HH:mm:ss')}
-                                                    </td>
-                                                    <td class="px-6 py-4">
-                                                        <div class="font-bold text-xs">${title}</div>
-                                                        <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">${j.user.name || 'N/A'}</div>
-                                                    </td>
-                                                    <td class="px-6 py-4 text-center">
-                                                        <div class="flex items-center justify-center gap-2">
-                                                            <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
-                                                            <span class="text-gray-300">→</span>
-                                                            <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td class="px-6 py-4 text-center">
-                                                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                                            j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
-                                                            j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
-                                                            'bg-yellow-100 text-yellow-600'
-                                                        }">
-                                                            ${j.status}
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-6 py-4 text-right">
-                                                        <button 
-                                                            onclick="loadJobDetails('${j.id}')" 
-                                                            id="btn-${j.id}"
-                                                            class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
-                                                    </td>
-                                                </tr>
-                                                `;
-                                            }).join('')}
-                                        </tbody>
-                    
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        ${jobs.map((j: any) => {
+                            const input = j.inputJson as any;
+                            const title = input?.title || input?.name || input?.header || 'Sans titre';
+                            return `
+                            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                                    ${DateTime.fromJSDate(j.createdAt).setZone(TIMEZONE).toFormat('dd/MM HH:mm:ss')}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="font-bold text-xs">${title}</div>
+                                    <div class="text-[9px] text-gray-400 font-medium italic mt-0.5">${j.user.name || 'N/A'}</div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <span class="bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.sourceLang || '??'}</span>
+                                        <span class="text-gray-300">→</span>
+                                        <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest">${j.targetLang}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                        j.status === 'COMPLETED' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 
+                                        j.status === 'FAILED' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 
+                                        'bg-yellow-100 text-yellow-600'
+                                    }">
+                                        ${j.status}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <button 
+                                        onclick="loadJobDetails('${j.id}')" 
+                                        id="btn-${j.id}"
+                                        class="text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest hover:underline">Détails</button>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
                 </table>
             </div>
+            
+            <!-- Pagination UI -->
+            <div class="px-6 py-4 bg-gray-50/50 dark:bg-gray-950/30 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    Total: ${totalJobsCount} jobs
+                </div>
+                <div class="flex gap-2">
+                    ${page > 1 ? `<a href="/admin/jobs?${getQueryString(page - 1)}" class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-md transition-all">Précédent</a>` : ''}
+                    ${page < totalPages ? `<a href="/admin/jobs?${getQueryString(page + 1)}" class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-md transition-all">Suivant</a>` : ''}
+                </div>
+            </div>
         </div>
+
+
 
         <!-- Modal -->
         <div id="detailsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
