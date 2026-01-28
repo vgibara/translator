@@ -14,6 +14,7 @@ export const callbackWorker = new Worker(
     const dbJobId = (payload.metadata as any)?.dbJobId;
     
     try {
+      logger.info({ url, payloadKeys: Object.keys(payload) }, 'Sending callback payload');
       const response = await axios.post(url, payload);
       
       if (dbJobId) {
