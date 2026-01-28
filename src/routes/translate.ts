@@ -54,6 +54,7 @@ export async function translationRoutes(fastify: FastifyInstance, options: Fasti
     // 2. Add to BullMQ with the DB ID
     const job = await addTranslationJob({
       userId: user.id,
+      apiKey,
       json,
       constraints,
       sourceLang,

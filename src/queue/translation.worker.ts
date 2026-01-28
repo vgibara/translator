@@ -14,7 +14,7 @@ const logger = pino();
 export const translationWorker = new Worker(
   TRANSLATION_QUEUE_NAME,
   async (job: Job<TranslationJobData>) => {
-    const { json, constraints, sourceLang, targetLang, callbackUrl, glossaryId, metadata } = job.data;
+    const { json, constraints, sourceLang, targetLang, callbackUrl, glossaryId, metadata, apiKey } = job.data;
     const dbJobId = metadata?.dbJobId;
 
     try {
@@ -71,6 +71,7 @@ export const translationWorker = new Worker(
       // Queue the callback
       await addCallbackJob({
         url: callbackUrl,
+        apiKey,
         payload: {
           status: 'completed',
           data: translatedJson,
@@ -97,6 +98,7 @@ export const translationWorker = new Worker(
 
       await addCallbackJob({
         url: callbackUrl,
+        apiKey,
         payload: {
           status: 'failed',
           error: error.message,

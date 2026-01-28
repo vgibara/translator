@@ -15,7 +15,11 @@ export const callbackWorker = new Worker(
     
     try {
       logger.info({ url, payloadKeys: Object.keys(payload) }, 'Sending callback payload');
-      const response = await axios.post(url, payload);
+      const response = await axios.post(url, payload, {
+        headers: {
+          'X-API-Key': job.data.apiKey,
+        }
+      });
       
       if (dbJobId) {
         await prisma.callbackLog.create({

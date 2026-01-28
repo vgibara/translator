@@ -17,6 +17,7 @@ export const translationQueue = new Queue(TRANSLATION_QUEUE_NAME, {
 
 export interface TranslationJobData {
   userId: string;
+  apiKey: string;
   json: any;
   constraints?: Record<string, number>;
  // Path -> MaxLength

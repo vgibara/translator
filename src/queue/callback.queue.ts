@@ -17,6 +17,7 @@ export const callbackQueue = new Queue(CALLBACK_QUEUE_NAME, {
 
 export interface CallbackJobData {
   url: string;
+  apiKey: string;
   payload: {
     status: 'completed' | 'failed';
     data?: any;
