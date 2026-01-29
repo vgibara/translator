@@ -22,7 +22,8 @@ const layout = (content: string, userEmail?: string, page: string = '') => `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Translator Admin 🌐</title>
+    <title>BIG Translator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
@@ -82,7 +83,7 @@ const layout = (content: string, userEmail?: string, page: string = '') => `
                 ${userEmail ? `
                 <div class="flex items-center space-x-2 md:space-x-4 pl-4 border-l border-gray-700">
                     <span class="hidden lg:inline text-xs text-gray-400 font-medium">${userEmail}</span>
-                    <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-[10px] md:text-xs font-black uppercase tracking-wider transition-colors">Quitter</a>
+                    <a href="/logout" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-[10px] md:text-xs font-black uppercase tracking-wider transition-colors">Déconnexion</a>
                 </div>
                 ` : ''}
             </div>
