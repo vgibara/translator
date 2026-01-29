@@ -20,7 +20,11 @@ export class DeepLService {
       texts,
       sourceLang,
       targetLang,
-      { glossary: glossaryId }
+      { 
+        glossary: glossaryId,
+        tagHandling: 'xml', // Important for handling inline tags correctly
+        ignoreTags: [],
+      }
     );
 
     if (Array.isArray(results)) {

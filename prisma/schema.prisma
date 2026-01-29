@@ -47,9 +47,21 @@ model TranslationJob {
 
   metadata      Json?
 
+  
+
+  // Performance metrics
+
+  totalSegments Int?     @default(0)
+
+  cacheHits     Int?     @default(0)
+
+  
+
   createdAt     DateTime @default(now())
 
   updatedAt     DateTime @updatedAt
+
+
 
   
 
@@ -65,18 +77,90 @@ model TranslationJob {
 
 model CallbackLog {
 
+
+
   id          String   @id @default(uuid())
+
+
 
   jobId       String
 
+
+
   job         TranslationJob @relation(fields: [jobId], references: [id])
+
+
 
   status      Int      // HTTP Status Code
 
+
+
   response    String?  // Response body
+
+
 
   error       String?
 
+
+
   createdAt   DateTime @default(now())
 
+
+
 }
+
+
+
+
+
+
+
+model TranslationCache {
+
+
+
+  id             String   @id @default(uuid())
+
+
+
+  sourceHash     String   // SHA-256 of sourceText
+
+
+
+  sourceText     String
+
+
+
+  sourceLang     String
+
+
+
+  targetLang     String
+
+
+
+  translatedText String
+
+
+
+  createdAt      DateTime @default(now())
+
+
+
+
+
+
+
+  @@unique([sourceHash, sourceLang, targetLang])
+
+
+
+  @@index([sourceHash])
+
+
+
+}
+
+
+
+

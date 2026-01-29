@@ -168,29 +168,37 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
   // Main Admin Page
   fastify.get('/', async (request, reply) => {
-    const [users, admins] = await Promise.all([
+    const [users, admins, jobsStats] = await Promise.all([
       prisma.user.findMany({ include: { _count: { select: { jobs: true } } }, orderBy: { createdAt: 'desc' } }),
-      prisma.adminUser.findMany({ orderBy: { createdAt: 'desc' } })
+      prisma.adminUser.findMany({ orderBy: { createdAt: 'desc' } }),
+      prisma.translationJob.aggregate({
+        _sum: {
+          totalSegments: true,
+          cacheHits: true
+        }
+      })
     ]);
+
+    const totalSegments = jobsStats._sum.totalSegments || 0;
+    const totalHits = jobsStats._sum.cacheHits || 0;
+    const globalSaving = totalSegments > 0 ? Math.round((totalHits / totalSegments) * 100) : 0;
 
     const stats = {
       totalKeys: users.length,
       totalJobs: users.reduce((acc: number, u: any) => acc + u._count.jobs, 0),
-      totalAdmins: admins.length + 1
+      totalAdmins: admins.length + 1,
+      globalSaving
     };
 
     const content = `
         <h2 class="text-2xl font-black mb-8 uppercase tracking-tighter">Tableau de bord</h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
             <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between transition-colors">
                 <div>
                     <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2">Clés API Actives</p>
                     <h3 class="text-4xl font-black text-gray-800 dark:text-white">${stats.totalKeys}</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Identifiants de service</p>
-                </div>
-                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-6 overflow-hidden">
-                    <div class="bg-blue-500 h-full rounded-full" style="width: 70%"></div>
                 </div>
             </div>
             <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between transition-colors">
@@ -199,18 +207,19 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     <h3 class="text-4xl font-black text-gray-800 dark:text-white">${stats.totalJobs}</h3>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Nombre total de requêtes</p>
                 </div>
-                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-6 overflow-hidden">
-                    <div class="bg-green-500 h-full rounded-full" style="width: 85%"></div>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between transition-colors">
+                <div>
+                    <p class="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-2">Économie Cache</p>
+                    <h3 class="text-4xl font-black text-blue-600 dark:text-blue-400">${stats.globalSaving}%</h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Réduction moyenne des coûts</p>
                 </div>
             </div>
             <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-between transition-colors">
                 <div>
                     <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-2">Administrateurs</p>
                     <h3 class="text-4xl font-black text-gray-800 dark:text-white">${stats.totalAdmins}</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Comptes Google autorisés</p>
-                </div>
-                <div class="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full mt-6 overflow-hidden">
-                    <div class="bg-purple-500 h-full rounded-full" style="width: 40%"></div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Comptes autorisés</p>
                 </div>
             </div>
         </div>
@@ -433,6 +442,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                             <th class="py-4 px-6 text-left">Heure (Toronto)</th>
                             <th class="py-4 px-6 text-left">Titre / Client</th>
                             <th class="py-4 px-6 text-center">Langues</th>
+                            <th class="py-4 px-6 text-center">Optimisation</th>
                             <th class="py-4 px-6 text-center">Résultat</th>
                             <th class="py-4 px-6 text-right">Détails</th>
                         </tr>
@@ -441,6 +451,8 @@ export async function adminRoutes(fastify: FastifyInstance) {
                         ${jobs.map((j: any) => {
                             const input = j.inputJson as any;
                             const title = input?.title || input?.name || input?.header || 'Sans titre';
+                            const saving = j.totalSegments > 0 ? Math.round((j.cacheHits / j.totalSegments) * 100) : 0;
+                            
                             return `
                             <tr class="hover:bg-blue-50/50 dark:hover:bg-gray-700/20 transition-colors group">
                                 <td class="py-4 px-6 text-left whitespace-nowrap">
@@ -448,7 +460,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                                     <div class="text-[9px] text-gray-400 font-bold uppercase mt-0.5 tracking-tighter">${DateTime.fromJSDate(j.createdAt).setZone(TIMEZONE).toFormat('dd MMM yyyy')}</div>
                                 </td>
                                 <td class="py-4 px-6 text-left">
-                                    <div class="font-black text-gray-800 dark:text-gray-100 text-xs truncate max-w-[250px]">${title}</div>
+                                    <div class="font-black text-gray-800 dark:text-gray-100 text-xs truncate max-w-[200px]">${title}</div>
                                     <div class="text-[9px] text-gray-400 font-bold uppercase mt-0.5 tracking-widest">${j.user.name || 'API KEY'}</div>
                                 </td>
                                 <td class="py-4 px-6 text-center">
@@ -457,6 +469,16 @@ export async function adminRoutes(fastify: FastifyInstance) {
                                         <span class="text-gray-300">→</span>
                                         <span class="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-md border border-blue-100 dark:border-blue-800 uppercase font-black text-[9px] tracking-widest">${j.targetLang}</span>
                                     </div>
+                                </td>
+                                <td class="py-4 px-6 text-center">
+                                    ${j.status === 'COMPLETED' ? `
+                                        <div class="flex flex-col items-center">
+                                            <div class="text-[10px] font-black text-blue-600 dark:text-blue-400">${saving}%</div>
+                                            <div class="w-12 bg-gray-100 dark:bg-gray-700 h-1 rounded-full mt-1 overflow-hidden">
+                                                <div class="bg-blue-500 h-full" style="width: ${saving}%"></div>
+                                            </div>
+                                        </div>
+                                    ` : '<span class="text-gray-300">-</span>'}
                                 </td>
                                 <td class="py-4 px-6 text-center">
                                     <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] ${
@@ -504,6 +526,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 <div class="flex border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-950/50">
                     <button onclick="switchTab('input')" id="tab-input" class="px-8 py-5 text-[10px] font-black uppercase tracking-widest border-b-4 border-blue-500 text-blue-600 transition-all">📥 Source</button>
                     <button onclick="switchTab('output')" id="tab-output" class="px-8 py-5 text-[10px] font-black uppercase tracking-widest border-b-4 border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all">📤 Résultat</button>
+                    <button onclick="switchTab('optimization')" id="tab-optimization" class="px-8 py-5 text-[10px] font-black uppercase tracking-widest border-b-4 border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all">⚡ Optimisation</button>
                     <button onclick="switchTab('logs')" id="tab-logs" class="px-8 py-5 text-[10px] font-black uppercase tracking-widest border-b-4 border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all">📜 Callbacks & Meta</button>
                 </div>
 
@@ -513,6 +536,29 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     </div>
                     <div id="content-output" class="tab-content hidden">
                         <pre class="bg-gray-50 dark:bg-gray-950 p-6 rounded-2xl text-[11px] font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800 text-gray-700 dark:text-gray-300"></pre>
+                    </div>
+                    <div id="content-optimization" class="tab-content hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="p-8 rounded-3xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 text-center">
+                                <p class="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-4">Efficacité du Cache</p>
+                                <div id="opt-percent" class="text-6xl font-black text-blue-600 dark:text-blue-400 mb-2">0%</div>
+                                <p class="text-xs text-gray-500 font-medium">Réduction du coût DeepL</p>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                    <span class="text-xs font-bold text-gray-500 uppercase tracking-tight">Total segments</span>
+                                    <span id="opt-total" class="font-black text-gray-800 dark:text-white">0</span>
+                                </div>
+                                <div class="flex justify-between items-center p-4 rounded-2xl border border-gray-100 dark:border-gray-800 bg-green-50/30 dark:bg-green-900/10">
+                                    <span class="text-xs font-bold text-green-600 uppercase tracking-tight">Hits (Cache)</span>
+                                    <span id="opt-hits" class="font-black text-green-600">0</span>
+                                </div>
+                                <div class="flex justify-between items-center p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                    <span class="text-xs font-bold text-red-500 uppercase tracking-tight">Miss (DeepL)</span>
+                                    <span id="opt-miss" class="font-black text-red-500">0</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div id="content-logs" class="tab-content hidden space-y-6">
                         <div id="callback-url-display" class="p-5 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-mono font-bold break-all border border-blue-100 dark:border-blue-800/50 shadow-sm"></div>
@@ -528,12 +574,12 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
         <script>
             function switchTab(tab) {
-                ['input', 'output', 'logs'].forEach(t => {
+                ['input', 'output', 'optimization', 'logs'].forEach(t => {
                     const btn = document.getElementById('tab-' + t);
                     const content = document.getElementById('content-' + t);
-                    btn.classList.remove('border-blue-500', 'text-blue-600');
-                    btn.classList.add('border-transparent', 'text-gray-400');
-                    content.classList.add('hidden');
+                    if (btn) btn.classList.remove('border-blue-500', 'text-blue-600');
+                    if (btn) btn.classList.add('border-transparent', 'text-gray-400');
+                    if (content) content.classList.add('hidden');
                 });
                 const activeBtn = document.getElementById('tab-' + tab);
                 activeBtn.classList.add('border-blue-500', 'text-blue-600');
@@ -552,6 +598,17 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     
                     document.querySelector('#content-input pre').textContent = JSON.stringify(data.inputJson, null, 2);
                     document.querySelector('#content-output pre').textContent = data.outputJson ? JSON.stringify(data.outputJson, null, 2) : "En attente de traduction...";
+                    
+                    // Optimization stats
+                    const total = data.totalSegments || 0;
+                    const hits = data.cacheHits || 0;
+                    const miss = total - hits;
+                    const percent = total > 0 ? Math.round((hits / total) * 100) : 0;
+                    
+                    document.getElementById('opt-percent').textContent = percent + '%';
+                    document.getElementById('opt-total').textContent = total;
+                    document.getElementById('opt-hits').textContent = hits;
+                    document.getElementById('opt-miss').textContent = miss;
                     
                     document.getElementById('callback-url-display').textContent = '🔗 CALLBACK URL: ' + data.callbackUrl;
                     
