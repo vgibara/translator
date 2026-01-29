@@ -74,7 +74,7 @@ Response:
 
 ### Dashboard
 
-Available at `http://localhost:3000/admin/queues`.
+Available at `http://localhost:3000/queues`.
 
 ## Deployment
 

@@ -65,7 +65,7 @@ createBullBoard({
   serverAdapter,
 });
 
-serverAdapter.setBasePath('/admin/queues');
+serverAdapter.setBasePath('/queues');
 
 async function start() {
   try {
@@ -79,12 +79,12 @@ async function start() {
     // Register routes
     await fastify.register(translationRoutes);
     await fastify.register(adminRoutes);
-    await fastify.register(serverAdapter.registerPlugin(), { prefix: '/admin/queues' });
+    await fastify.register(serverAdapter.registerPlugin(), { prefix: '/queues' });
 
 
     await fastify.listen({ port: env.PORT, host: '0.0.0.0' });
     console.log(`Server listening on http://localhost:${env.PORT}`);
-    console.log(`Dashboard available at http://localhost:${env.PORT}/admin/queues`);
+    console.log(`Dashboard available at http://localhost:${env.PORT}/queues`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

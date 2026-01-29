@@ -62,14 +62,14 @@ const layout = (content: string, userEmail?: string, page: string = '') => `
     <nav class="bg-gray-800 dark:bg-gray-950 p-4 text-white shadow-lg transition-colors duration-200 sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
             <div class="flex items-center space-x-6">
-                <a href="/admin" class="text-xl font-bold flex items-center gap-2">
+                <a href="/" class="text-xl font-bold flex items-center gap-2">
                     <span>🌐</span> <span class="hidden sm:inline text-white">Translator</span>
                 </a>
                 ${userEmail ? `
                 <div class="flex space-x-1 md:space-x-4">
-                    <a href="/admin" class="${page === 'dashboard' ? 'bg-gray-900 dark:bg-gray-800 text-white' : 'text-gray-300 hover:text-white'} px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors">Tableau de bord</a>
-                    <a href="/admin/jobs" class="${page === 'jobs' ? 'bg-gray-900 dark:bg-gray-800 text-white' : 'text-gray-300 hover:text-white'} px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors">Archives</a>
-                    <a href="/admin/queues" class="text-gray-300 hover:text-white px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors">Files d'attente</a>
+                    <a href="/" class="${page === 'dashboard' ? 'bg-gray-900 dark:bg-gray-800 text-white' : 'text-gray-300 hover:text-white'} px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors">Tableau de bord</a>
+                    <a href="/jobs" class="${page === 'jobs' ? 'bg-gray-900 dark:bg-gray-800 text-white' : 'text-gray-300 hover:text-white'} px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors">Archives</a>
+                    <a href="/queues" class="text-gray-300 hover:text-white px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors">Files d'attente</a>
                 </div>
                 ` : ''}
             </div>
@@ -118,7 +118,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
       if (isAdmin) {
         request.session.userEmail = googleUser.email;
-        reply.redirect('/admin');
+        reply.redirect('/');
       } else {
         reply.status(403).type('text/html').send(layout(`
             <div class="max-w-md mx-auto text-center bg-white dark:bg-gray-800 p-12 rounded-2xl shadow-xl border border-red-100 dark:border-red-900/30 mt-20">
@@ -158,7 +158,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   });
 
   // API: Get Job Details
-  fastify.get('/admin/jobs/:id/data', async (request, reply) => {
+  fastify.get('/jobs/:id/data', async (request, reply) => {
     const { id } = request.params as { id: string };
     return await prisma.translationJob.findUnique({
       where: { id },
@@ -167,7 +167,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
   });
 
   // Main Admin Page
-  fastify.get('/admin', async (request, reply) => {
+  fastify.get('/', async (request, reply) => {
     const [users, admins] = await Promise.all([
       prisma.user.findMany({ include: { _count: { select: { jobs: true } } }, orderBy: { createdAt: 'desc' } }),
       prisma.adminUser.findMany({ orderBy: { createdAt: 'desc' } })
@@ -245,13 +245,13 @@ export async function adminRoutes(fastify: FastifyInstance) {
                         </table>
                     </div>
                 </div>
-                <div class="text-center"><a href="/admin/jobs" class="inline-block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:shadow-lg transition-all">Consulter les Archives →</a></div>
+                <div class="text-center"><a href="/jobs" class="inline-block bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:shadow-lg transition-all">Consulter les Archives →</a></div>
             </div>
 
             <div class="space-y-6">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 transition-colors">
                     <h2 class="font-black uppercase tracking-tight text-sm mb-6">Administrateurs Google</h2>
-                    <form method="POST" action="/admin/admins/create" class="flex gap-2 mb-8">
+                    <form method="POST" action="/admins/create" class="flex gap-2 mb-8">
                         <input type="email" name="email" placeholder="Email Google" class="flex-grow bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-xs focus:ring-2 focus:ring-blue-500 outline-none font-medium dark:text-white" required>
                         <button type="submit" class="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-4 py-3 rounded-xl text-xs font-black uppercase transition-transform active:scale-95">Ok</button>
                     </form>
@@ -263,7 +263,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                         ${admins.map((a: any) => `
                             <div class="flex justify-between items-center p-4 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-gray-50/30 dark:hover:bg-gray-900/30 transition-all group">
                                 <span class="text-xs font-medium text-gray-600 dark:text-gray-400">${a.email}</span>
-                                <form method="POST" action="/admin/admins/delete" onsubmit="return confirm('Supprimer cet accès ?')">
+                                <form method="POST" action="/admins/delete" onsubmit="return confirm('Supprimer cet accès ?')">
                                     <input type="hidden" name="id" value="${a.id}">
                                     <button type="submit" class="text-gray-300 hover:text-red-500 group-hover:scale-125 transition-all font-black text-xl px-2">&times;</button>
                                 </form>
@@ -273,7 +273,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 </div>
                 <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] shadow-xl p-8 text-white">
                     <h2 class="font-black uppercase tracking-widest text-[10px] mb-6 opacity-80">Monitoring Live</h2>
-                    <a href="/admin/queues" class="flex items-center justify-between bg-white/10 hover:bg-white/20 p-5 rounded-2xl transition-all border border-white/10 group shadow-sm">
+                    <a href="/queues" class="flex items-center justify-between bg-white/10 hover:bg-white/20 p-5 rounded-2xl transition-all border border-white/10 group shadow-sm">
                         <span class="text-sm font-bold uppercase tracking-tight">Files d'attente</span>
                         <span class="group-hover:translate-x-2 transition-transform text-xl">→</span>
                     </a>
@@ -288,7 +288,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                     <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">🔑</div>
                     <h3 class="text-3xl font-black mb-2 tracking-tighter uppercase dark:text-white">Générer une clé</h3>
                     <p class="text-gray-400 text-[10px] font-black mb-10 uppercase tracking-[0.2em]">Identifiant de service API</p>
-                    <form method="POST" action="/admin/users/create">
+                    <form method="POST" action="/users/create">
                         <div class="space-y-6 text-left">
                             <div>
                                 <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2">Nom de la clé</label>
@@ -312,30 +312,30 @@ export async function adminRoutes(fastify: FastifyInstance) {
   });
 
   // Action: Create Key
-  fastify.post('/admin/users/create', async (request, reply) => {
+  fastify.post('/users/create', async (request, reply) => {
     const { email, name } = request.body as { email?: string, name: string };
     await authService.createUser(name, email);
-    reply.redirect('/admin');
+    reply.redirect('/');
   });
 
   // Action: Add Admin
-  fastify.post('/admin/admins/create', async (request, reply) => {
+  fastify.post('/admins/create', async (request, reply) => {
     const { email } = request.body as { email: string };
     try {
       await prisma.adminUser.create({ data: { email } });
     } catch (e) {}
-    reply.redirect('/admin');
+    reply.redirect('/');
   });
 
   // Action: Remove Admin
-  fastify.post('/admin/admins/delete', async (request, reply) => {
+  fastify.post('/admins/delete', async (request, reply) => {
     const { id } = request.body as { id: string };
     await prisma.adminUser.delete({ where: { id } });
-    reply.redirect('/admin');
+    reply.redirect('/');
   });
 
   // Archives Page with Filters & Pagination
-  fastify.get('/admin/jobs', async (request, reply) => {
+  fastify.get('/jobs', async (request, reply) => {
     const query = request.query as any;
     const page = parseInt(query.page) || 1;
     const limit = 50;
@@ -392,11 +392,11 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 <h2 class="text-2xl font-black uppercase tracking-tighter">Journal des Traductions</h2>
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1">Page ${page} / ${totalPages || 1} — ${totalJobsCount} jobs</p>
             </div>
-            <a href="/admin" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all">← Retour</a>
+            <a href="/" class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-lg transition-all">← Retour</a>
         </div>
 
         <!-- Filters Bar -->
-        <form method="GET" action="/admin/jobs" class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-4 items-end mb-8 transition-colors">
+        <form method="GET" action="/jobs" class="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-4 items-end mb-8 transition-colors">
             <div class="flex-grow min-w-[140px]">
                 <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Début</label>
                 <input type="date" name="dateStart" value="${query.dateStart || ''}" class="w-full border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-xs bg-gray-50 dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-bold">
@@ -421,7 +421,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
             </div>
             <div class="flex gap-2">
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 shadow-sm transition-all">Filtrer</button>
-                <a href="/admin/jobs" class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">R.A.Z</a>
+                <a href="/jobs" class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-center hover:bg-gray-200 dark:hover:bg-gray-600 transition-all">R.A.Z</a>
             </div>
         </form>
 
@@ -487,9 +487,9 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 Total : <span class="text-gray-800 dark:text-white font-black text-xs">${totalJobsCount}</span> requêtes
             </div>
             <div class="flex items-center gap-4">
-                ${page > 1 ? `<a href="/admin/jobs?${getQueryString(page - 1)}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors">← Précédent</a>` : ''}
+                ${page > 1 ? `<a href="/jobs?${getQueryString(page - 1)}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors">← Précédent</a>` : ''}
                 <span class="text-xs font-black bg-gray-50 dark:bg-gray-900 px-6 py-2 rounded-xl border border-gray-100 dark:border-gray-700 uppercase tracking-widest">Page ${page} / ${totalPages || 1}</span>
-                ${page < totalPages ? `<a href="/admin/jobs?${getQueryString(page + 1)}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors">Suivant →</a>` : ''}
+                ${page < totalPages ? `<a href="/jobs?${getQueryString(page + 1)}" class="p-2 text-gray-400 hover:text-blue-600 transition-colors">Suivant →</a>` : ''}
             </div>
         </div>
 
@@ -547,7 +547,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
                 btn.textContent = '...';
                 
                 try {
-                    const response = await fetch('/admin/jobs/' + id + '/data');
+                    const response = await fetch('/jobs/' + id + '/data');
                     const data = await response.json();
                     
                     document.querySelector('#content-input pre').textContent = JSON.stringify(data.inputJson, null, 2);
